@@ -50,6 +50,27 @@ const AuctionList = () => {
     };
   }, [auctions]);
 
+  // ✅ REAL-TIME: Listen for new auctions and refresh list
+  useEffect(() => {
+    const handleNewAuction = () => {
+      // Refresh auction list when new auction is created
+      fetchAuctions({
+        page: 1,
+        limit: 12,
+        search: searchTerm,
+        status: selectedStatus,
+        category: selectedCategory,
+      });
+    };
+
+    // Listen for WebSocket notifications about new auctions
+    const interval = setInterval(() => {
+      handleNewAuction();
+    }, 10000); // Refresh every 10 seconds to catch new auctions
+
+    return () => clearInterval(interval);
+  }, [searchTerm, selectedStatus, selectedCategory]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchAuctions({

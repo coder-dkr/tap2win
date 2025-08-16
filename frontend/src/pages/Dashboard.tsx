@@ -1,9 +1,123 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { Gavel, Plus, Clock, TrendingUp } from 'lucide-react';
+import { useAuctionStore } from '../stores/auctionStore';
+import { useWebSocketStore } from '../stores/websocketStore';
+import { Gavel, Plus, Clock, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface DashboardStats {
+  activeAuctions: number;
+  totalBids: number;
+  winningBids: number;
+  totalRevenue: number;
+  recentAuctions: Array<{
+    id: string;
+    title: string;
+    currentPrice: number;
+    status: string;
+    endTime: string;
+  }>;
+  recentBids: Array<{
+    id: string;
+    amount: number;
+    auctionTitle: string;
+    createdAt: string;
+  }>;
+}
 
 const Dashboard = () => {
   const { user } = useAuthStore();
+  const { fetchMyAuctions, fetchMyBids, myAuctions, myBids } = useAuctionStore();
+  const { isConnected } = useWebSocketStore();
+  
+  const [stats, setStats] = useState<DashboardStats>({
+    activeAuctions: 0,
+    totalBids: 0,
+    winningBids: 0,
+    totalRevenue: 0,
+    recentAuctions: [],
+    recentBids: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  useEffect(() => {
+    // Update stats when auction/bid data changes
+    updateStats();
+  }, [myAuctions, myBids]);
+
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchMyAuctions({ limit: 10 }),
+        fetchMyBids({ limit: 10 })
+      ]);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateStats = () => {
+    const activeAuctions = myAuctions.filter(auction => auction.status === 'active').length;
+    const totalBids = myBids.length;
+    const winningBids = myBids.filter(bid => bid.isWinning).length;
+    
+    // Calculate total revenue from completed auctions
+    const completedAuctions = myAuctions.filter(auction => auction.status === 'completed');
+    const totalRevenue = completedAuctions.reduce((sum, auction) => {
+      return sum + (auction.finalPrice || auction.currentPrice || 0);
+    }, 0);
+
+    const recentAuctions = myAuctions
+      .slice(0, 5)
+      .map(auction => ({
+        id: auction.id,
+        title: auction.title,
+        currentPrice: auction.currentPrice || auction.startingPrice,
+        status: auction.status,
+        endTime: auction.endTime
+      }));
+
+    const recentBids = myBids
+      .slice(0, 5)
+      .map(bid => ({
+        id: bid.id,
+        amount: bid.amount,
+        auctionTitle: bid.auction?.title || 'Unknown Auction',
+        createdAt: bid.createdAt
+      }));
+
+    setStats({
+      activeAuctions,
+      totalBids,
+      winningBids,
+      totalRevenue,
+      recentAuctions,
+      recentBids
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-8"></div>
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -14,9 +128,17 @@ const Dashboard = () => {
         <p className="text-gray-600 mt-2">
           Here's what's happening with your auctions and bids
         </p>
+        <div className="mt-2">
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            {isConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
+          </span>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-4 gap-6 mb-8">
         <div className="card">
           <div className="card-content">
             <div className="flex items-center">
@@ -25,7 +147,7 @@ const Dashboard = () => {
               </div>
               <div className="ml-4">
                 <h3 className="text-lg font-semibold">Active Auctions</h3>
-                <p className="text-2xl font-bold text-primary">0</p>
+                <p className="text-2xl font-bold text-primary">{stats.activeAuctions}</p>
               </div>
             </div>
           </div>
@@ -39,7 +161,7 @@ const Dashboard = () => {
               </div>
               <div className="ml-4">
                 <h3 className="text-lg font-semibold">My Bids</h3>
-                <p className="text-2xl font-bold text-success">0</p>
+                <p className="text-2xl font-bold text-success">{stats.totalBids}</p>
               </div>
             </div>
           </div>
@@ -53,7 +175,21 @@ const Dashboard = () => {
               </div>
               <div className="ml-4">
                 <h3 className="text-lg font-semibold">Winning Bids</h3>
-                <p className="text-2xl font-bold text-warning">0</p>
+                <p className="text-2xl font-bold text-warning">{stats.winningBids}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-content">
+            <div className="flex items-center">
+              <div className="bg-purple-500 text-white rounded-full p-3">
+                <DollarSign className="h-6 w-6" />
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-semibold">Total Revenue</h3>
+                <p className="text-2xl font-bold text-purple-600">${stats.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -88,9 +224,26 @@ const Dashboard = () => {
             <h2 className="card-title">Recent Activity</h2>
           </div>
           <div className="card-content">
-            <p className="text-gray-500 text-center py-8">
-              No recent activity to display
-            </p>
+            {stats.recentBids.length > 0 ? (
+              <div className="space-y-3">
+                {stats.recentBids.map((bid) => (
+                  <div key={bid.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Bid ${bid.amount} on {bid.auctionTitle}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(bid.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">
+                No recent activity to display
+              </p>
+            )}
           </div>
         </div>
       </div>

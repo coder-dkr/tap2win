@@ -8,8 +8,8 @@ const NotificationPanel = () => {
   const { notifications, clearNotifications } = useWebSocketStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
+  const getNotificationIcon = (notificationType: string) => {
+    switch (notificationType) {
       case 'newBid':
         return <DollarSign className="h-5 w-5 text-green-500" />;
       case 'outbid':
@@ -22,13 +22,25 @@ const NotificationPanel = () => {
         return <X className="h-5 w-5 text-red-500" />;
       case 'counterOffer':
         return <Gavel className="h-5 w-5 text-yellow-500" />;
+      case 'newAuction':
+        return <Gavel className="h-5 w-5 text-blue-500" />;
+      case 'auctionCompleted':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'auctionCreated':
+        return <Gavel className="h-5 w-5 text-green-500" />;
+      case 'counterOfferSent':
+        return <Gavel className="h-5 w-5 text-blue-500" />;
+      case 'counterOfferAccepted':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'counterOfferRejected':
+        return <X className="h-5 w-5 text-red-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  const getNotificationColor = (type: string) => {
-    switch (type) {
+  const getNotificationColor = (notificationType: string) => {
+    switch (notificationType) {
       case 'newBid':
         return 'bg-green-50 border-green-200';
       case 'outbid':
@@ -41,6 +53,18 @@ const NotificationPanel = () => {
         return 'bg-red-50 border-red-200';
       case 'counterOffer':
         return 'bg-yellow-50 border-yellow-200';
+      case 'newAuction':
+        return 'bg-blue-50 border-blue-200';
+      case 'auctionCompleted':
+        return 'bg-green-50 border-green-200';
+      case 'auctionCreated':
+        return 'bg-green-50 border-green-200';
+      case 'counterOfferSent':
+        return 'bg-blue-50 border-blue-200';
+      case 'counterOfferAccepted':
+        return 'bg-green-50 border-green-200';
+      case 'counterOfferRejected':
+        return 'bg-red-50 border-red-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -106,7 +130,7 @@ const NotificationPanel = () => {
                   >
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0 mt-1">
-                        {getNotificationIcon(notification.type)}
+                        {getNotificationIcon(notification.notificationType)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">

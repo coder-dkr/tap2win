@@ -27,7 +27,7 @@ const AuctionDetail = () => {
   const { fetchAuctionById, placeBid, makeSellerDecision, currentAuction, isLoading } = useAuctionStore();
   const { joinAuction, leaveAuction, isConnected } = useWebSocketStore();
   
-  const [bids] = useState<Array<{ id: string; bidderId: string; amount: number; isWinning: boolean; bidTime: string; bidder?: { username: string } }>>([]);
+  const [bids, setBids] = useState<Array<{ id: string; bidderId: string; amount: number; isWinning: boolean; bidTime: string; bidder?: { username: string } }>>([]);
   const [isBidding, setIsBidding] = useState(false);
   const [showSellerDecision, setShowSellerDecision] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
@@ -81,7 +81,14 @@ const AuctionDetail = () => {
   const loadAuction = async () => {
     try {
       await fetchAuctionById(id!);
-      // The auction data will be available in currentAuction from the store
+      // Fetch bid history for this auction
+      if (id) {
+        const response = await fetch(`/api/bids/auction/${id}`);
+        const data = await response.json();
+        if (data.success && data.data) {
+          setBids(data.data.bids || []);
+        }
+      }
     } catch {
       toast.error('Failed to load auction');
     }

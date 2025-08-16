@@ -158,24 +158,33 @@ const handleAcceptBid = async (auction, highestBid, bidder) => {
     }
   });
 
-  // Send real-time notifications
-  broadcastToUser(bidder.id, 'bidAccepted', {
+  // ✅ REAL-TIME: Send real-time notifications
+  broadcastToUser(bidder.id, {
+    type: 'notification',
+    notificationType: 'bidAccepted',
+    title: 'Congratulations! Your bid was accepted',
+    message: `Your bid of $${highestBid.amount} for "${auction.title}" has been accepted`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    finalPrice: highestBid.amount
+    isRead: false
   });
 
-  broadcastToUser(auction.sellerId, 'auctionCompleted', {
+  broadcastToUser(auction.sellerId, {
+    type: 'notification',
+    notificationType: 'auctionCompleted',
+    title: 'Auction Completed Successfully',
+    message: `You accepted the bid of $${highestBid.amount} for "${auction.title}"`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    finalPrice: highestBid.amount,
-    winnerId: bidder.id
+    isRead: false
   });
 
-  // Broadcast to auction room
-  broadcastToAuction(auction.id, 'auctionCompleted', {
+  // ✅ REAL-TIME: Broadcast to auction room
+  broadcastToAuction(auction.id, {
+    type: 'auctionCompleted',
     auctionId: auction.id,
     status: 'completed',
+    decision: 'accepted',
     finalPrice: highestBid.amount,
     winner: {
       id: bidder.id,
@@ -230,21 +239,30 @@ const handleRejectBid = async (auction, highestBid, bidder) => {
     }
   });
 
-  // Send real-time notifications
-  broadcastToUser(bidder.id, 'bidRejected', {
+  // ✅ REAL-TIME: Send real-time notifications
+  broadcastToUser(bidder.id, {
+    type: 'notification',
+    notificationType: 'bidRejected',
+    title: 'Your bid was not accepted',
+    message: `Unfortunately, your bid of $${highestBid.amount} for "${auction.title}" was not accepted`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    bidAmount: highestBid.amount
+    isRead: false
   });
 
-  broadcastToUser(auction.sellerId, 'auctionCompleted', {
+  broadcastToUser(auction.sellerId, {
+    type: 'notification',
+    notificationType: 'auctionCompleted',
+    title: 'Auction Completed',
+    message: `You rejected the bid of $${highestBid.amount} for "${auction.title}"`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    decision: 'rejected'
+    isRead: false
   });
 
-  // Broadcast to auction room
-  broadcastToAuction(auction.id, 'auctionCompleted', {
+  // ✅ REAL-TIME: Broadcast to auction room
+  broadcastToAuction(auction.id, {
+    type: 'auctionCompleted',
     auctionId: auction.id,
     status: 'completed',
     decision: 'rejected'
@@ -292,18 +310,25 @@ const handleCounterOffer = async (auction, highestBid, bidder, counterOfferAmoun
     }
   });
 
-  // Send real-time notifications
-  broadcastToUser(bidder.id, 'counterOfferReceived', {
+  // ✅ REAL-TIME: Send real-time notifications
+  broadcastToUser(bidder.id, {
+    type: 'notification',
+    notificationType: 'counterOffer',
+    title: 'Counter Offer Received',
+    message: `The seller made a counter offer of $${counterOfferAmount} for "${auction.title}"`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    originalBid: highestBid.amount,
-    counterOffer: counterOfferAmount
+    isRead: false
   });
 
-  broadcastToUser(auction.sellerId, 'counterOfferSent', {
+  broadcastToUser(auction.sellerId, {
+    type: 'notification',
+    notificationType: 'counterOfferSent',
+    title: 'Counter Offer Sent',
+    message: `You sent a counter offer of $${counterOfferAmount} for "${auction.title}"`,
+    timestamp: new Date().toISOString(),
     auctionId: auction.id,
-    auctionTitle: auction.title,
-    counterOffer: counterOfferAmount
+    isRead: false
   });
 
   // Send email notification
@@ -395,22 +420,33 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         }
       });
 
-      // Send real-time notifications
-      broadcastToUser(bidderId, 'counterOfferAccepted', {
+      // ✅ REAL-TIME: Send real-time notifications
+      broadcastToUser(bidderId, {
+        type: 'notification',
+        notificationType: 'counterOfferAccepted',
+        title: 'Counter Offer Accepted',
+        message: `You accepted the counter offer of $${auction.counterOfferAmount} for "${auction.title}"`,
+        timestamp: new Date().toISOString(),
         auctionId: auction.id,
-        finalPrice: auction.counterOfferAmount
+        isRead: false
       });
 
-      broadcastToUser(auction.sellerId, 'counterOfferAccepted', {
+      broadcastToUser(auction.sellerId, {
+        type: 'notification',
+        notificationType: 'counterOfferAccepted',
+        title: 'Counter Offer Accepted',
+        message: `Your counter offer of $${auction.counterOfferAmount} for "${auction.title}" was accepted`,
+        timestamp: new Date().toISOString(),
         auctionId: auction.id,
-        finalPrice: auction.counterOfferAmount,
-        acceptedBy: req.user.username
+        isRead: false
       });
 
-      // Broadcast to auction room
-      broadcastToAuction(auction.id, 'auctionCompleted', {
+      // ✅ REAL-TIME: Broadcast to auction room
+      broadcastToAuction(auction.id, {
+        type: 'auctionCompleted',
         auctionId: auction.id,
         status: 'completed',
+        decision: 'counter_offer_accepted',
         finalPrice: auction.counterOfferAmount,
         winner: {
           id: bidderId,
@@ -462,20 +498,30 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         }
       });
 
-      // Send real-time notifications
-      broadcastToUser(bidderId, 'counterOfferRejected', {
+      // ✅ REAL-TIME: Send real-time notifications
+      broadcastToUser(bidderId, {
+        type: 'notification',
+        notificationType: 'counterOfferRejected',
+        title: 'Counter Offer Rejected',
+        message: `You rejected the counter offer of $${auction.counterOfferAmount} for "${auction.title}"`,
+        timestamp: new Date().toISOString(),
         auctionId: auction.id,
-        rejectedAmount: auction.counterOfferAmount
+        isRead: false
       });
 
-      broadcastToUser(auction.sellerId, 'counterOfferRejected', {
+      broadcastToUser(auction.sellerId, {
+        type: 'notification',
+        notificationType: 'counterOfferRejected',
+        title: 'Counter Offer Rejected',
+        message: `Your counter offer of $${auction.counterOfferAmount} for "${auction.title}" was rejected`,
+        timestamp: new Date().toISOString(),
         auctionId: auction.id,
-        rejectedAmount: auction.counterOfferAmount,
-        rejectedBy: req.user.username
+        isRead: false
       });
 
-      // Broadcast to auction room
-      broadcastToAuction(auction.id, 'auctionCompleted', {
+      // ✅ REAL-TIME: Broadcast to auction room
+      broadcastToAuction(auction.id, {
+        type: 'auctionCompleted',
         auctionId: auction.id,
         status: 'completed',
         decision: 'counter_offer_rejected'

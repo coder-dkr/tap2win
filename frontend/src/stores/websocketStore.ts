@@ -180,6 +180,21 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
         set({ auctionState: message as AuctionStateMessage });
         break;
 
+      case 'newAuction': {
+        // ✅ REAL-TIME: Handle new auction creation
+        get().addNotification({
+          id: `new-auction-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'newAuction',
+          title: 'New Auction Available',
+          message: `New auction: ${message.auction.title} - Starting at $${message.auction.startingPrice}`,
+          timestamp: new Date().toISOString(),
+          auctionId: message.auction.id,
+          isRead: false
+        });
+        break;
+      }
+
       case 'newBid': {
         // Update auction state with new bid
         const newBidMessage = message as NewBidMessage;
@@ -190,6 +205,48 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
             bidCount: newBidMessage.auction.bidCount
           } : null
         }));
+        
+        // Add notification for new bid
+        get().addNotification({
+          id: `bid-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'newBid',
+          title: 'New Bid Placed',
+          message: `A new bid of $${newBidMessage.bid.amount} was placed on the auction`,
+          timestamp: new Date().toISOString(),
+          auctionId: newBidMessage.auction.id,
+          isRead: false
+        });
+        break;
+      }
+
+      case 'outbid': {
+        // Add notification for outbid
+        get().addNotification({
+          id: `outbid-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'outbid',
+          title: 'You\'ve Been Outbid',
+          message: `Someone placed a higher bid on the auction`,
+          timestamp: new Date().toISOString(),
+          auctionId: message.auctionId as string,
+          isRead: false
+        });
+        break;
+      }
+
+      case 'auctionEnded': {
+        // Add notification for auction ended
+        get().addNotification({
+          id: `ended-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'auctionEnded',
+          title: 'Auction Ended',
+          message: `The auction has ended`,
+          timestamp: new Date().toISOString(),
+          auctionId: message.auctionId as string,
+          isRead: false
+        });
         break;
       }
 
@@ -211,6 +268,37 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
       case 'auctionUpdate':
         set({ auctionState: message as AuctionStateMessage });
         break;
+
+      case 'auctionCompleted': {
+        // ✅ REAL-TIME: Handle auction completion events
+        const title = message.decision === 'accepted' ? 'Auction Won!' : 
+                     message.decision === 'rejected' ? 'Auction Ended' :
+                     message.decision === 'counter_offer_accepted' ? 'Counter Offer Accepted!' :
+                     message.decision === 'counter_offer_rejected' ? 'Counter Offer Rejected' :
+                     'Auction Completed';
+                     
+        const messageText = message.decision === 'accepted' ? 
+                           `Congratulations! You won with a bid of $${message.finalPrice}` :
+                           message.decision === 'rejected' ? 
+                           'The seller did not accept the highest bid' :
+                           message.decision === 'counter_offer_accepted' ?
+                           `Counter offer of $${message.finalPrice} was accepted!` :
+                           message.decision === 'counter_offer_rejected' ?
+                           'Counter offer was rejected' :
+                           'The auction has been completed';
+
+        get().addNotification({
+          id: `auction-completed-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'auctionCompleted',
+          title,
+          message: messageText,
+          timestamp: new Date().toISOString(),
+          auctionId: message.auctionId,
+          isRead: false
+        });
+        break;
+      }
 
       case 'pong':
         // Handle pong response

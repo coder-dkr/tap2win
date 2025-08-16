@@ -115,10 +115,13 @@ export interface NewBidMessage extends WebSocketMessage {
 
 export interface NotificationMessage extends WebSocketMessage {
   type: 'notification';
-  notificationType: string;
+  id: string;
+  notificationType: 'newBid' | 'outbid' | 'auctionEnded' | 'bidAccepted' | 'bidRejected' | 'counterOffer' | 'newAuction' | 'auctionCompleted' | 'auctionCreated' | 'counterOfferSent' | 'counterOfferAccepted' | 'counterOfferRejected';
   title: string;
   message: string;
+  timestamp: string;
   auctionId?: string;
+  isRead: boolean;
 }
 
 // Form types

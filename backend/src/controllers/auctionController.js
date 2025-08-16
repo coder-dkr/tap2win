@@ -1,6 +1,7 @@
 const { Auction, User, Bid } = require('../models');
 const { asyncHandler } = require('../middleware/errorHandler');
 const redisService = require('../services/redisService');
+const { broadcastToAll, broadcastToUser } = require('../socket/socketManager');
 const { Op } = require('sequelize');
 
 const createAuction = asyncHandler(async (req, res) => {
@@ -47,6 +48,36 @@ const createAuction = asyncHandler(async (req, res) => {
   if (new Date(startTime) <= now) {
     await redisService.addActiveAuction(auction.id, endTime);
   }
+
+  // ✅ REAL-TIME: Broadcast new auction to all users
+  broadcastToAll({
+    type: 'newAuction',
+    auction: {
+      id: auctionWithSeller.id,
+      title: auctionWithSeller.title,
+      description: auctionWithSeller.description,
+      startingPrice: auctionWithSeller.startingPrice,
+      currentPrice: auctionWithSeller.currentPrice,
+      category: auctionWithSeller.category,
+      condition: auctionWithSeller.condition,
+      status: auctionWithSeller.status,
+      startTime: auctionWithSeller.startTime,
+      endTime: auctionWithSeller.endTime,
+      images: auctionWithSeller.images,
+      seller: auctionWithSeller.seller
+    }
+  });
+
+  // ✅ REAL-TIME: Send notification to the seller
+  broadcastToUser(req.user.id, {
+    type: 'notification',
+    notificationType: 'auctionCreated',
+    title: 'Auction Created Successfully',
+    message: `Your auction "${title}" has been created and is now ${new Date(startTime) <= now ? 'live' : 'scheduled'}`,
+    timestamp: new Date().toISOString(),
+    auctionId: auction.id,
+    isRead: false
+  });
 
   res.status(201).json({
     success: true,
