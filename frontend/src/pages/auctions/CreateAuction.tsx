@@ -26,11 +26,12 @@ const CreateAuction = () => {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<CreateAuctionForm>();
 
-  // Watch form values for potential future use
-  // const startingPrice = watch('startingPrice');
-  // const bidIncrement = watch('bidIncrement');
+  // Watch form values for real-time validation
+  const startingPrice = watch('startingPrice');
+  const bidIncrement = watch('bidIncrement');
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -194,6 +195,11 @@ const CreateAuction = () => {
               {errors.startingPrice && (
                 <p className="mt-1 text-sm text-red-600">{errors.startingPrice.message}</p>
               )}
+              {startingPrice && (
+                <div className="mt-1 text-xs text-gray-500">
+                  Starting price: ${Number(startingPrice).toFixed(2)}
+                </div>
+              )}
             </div>
 
             <div>
@@ -216,6 +222,11 @@ const CreateAuction = () => {
               </div>
               {errors.bidIncrement && (
                 <p className="mt-1 text-sm text-red-600">{errors.bidIncrement.message}</p>
+              )}
+              {bidIncrement && (
+                <div className="mt-1 text-xs text-gray-500">
+                  Minimum bid increment: ${Number(bidIncrement).toFixed(2)}
+                </div>
               )}
             </div>
           </div>

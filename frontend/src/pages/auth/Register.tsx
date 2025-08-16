@@ -15,10 +15,10 @@ const Register = () => {
     register,
     handleSubmit,
     formState: { errors },
-    // watch,
+    watch,
   } = useForm<RegisterForm>();
 
-  // const password = watch('password');
+  const password = watch('password');
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -186,6 +186,32 @@ const Register = () => {
               </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              )}
+              {password && (
+                <div className="mt-1 text-xs text-gray-500">
+                  Password strength: {password.length < 6 ? 'Weak' : password.length < 10 ? 'Medium' : 'Strong'}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="label">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  {...register('confirmPassword', {
+                    required: 'Please confirm your password',
+                    validate: (value) => value === password || 'Passwords do not match',
+                  })}
+                  type="password"
+                  className="input pl-10"
+                  placeholder="Confirm your password"
+                />
+              </div>
+              {errors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
             </div>
 

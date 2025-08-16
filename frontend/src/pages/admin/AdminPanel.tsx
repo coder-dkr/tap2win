@@ -358,18 +358,16 @@ const AdminPanel = () => {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-medium text-gray-900 mb-2">Recent Activity</h4>
                   <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                      New bid placed on "MacBook Pro 2023"
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                      Auction "iPhone 15" completed
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                      New user registered
-                    </div>
+                    {recentActivity.length > 0 ? (
+                      recentActivity.slice(0, 3).map((activity) => (
+                        <div key={activity.id} className="flex items-center text-sm text-gray-600">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          {activity.message}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500">No recent activity</div>
+                    )}
                   </div>
                 </div>
 

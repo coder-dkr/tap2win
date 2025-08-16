@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-// import { toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuctionStore } from '../../stores/auctionStore';
-// import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '../../stores/authStore';
 import { 
   Eye, 
   DollarSign, 
@@ -16,13 +16,16 @@ import {
 } from 'lucide-react';
 
 const MyBids = () => {
-  // const { user } = useAuthStore();
+  const { user } = useAuthStore();
   const { myBids, fetchMyBids, isLoading } = useAuctionStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   useEffect(() => {
     fetchMyBids();
-  }, []);
+    if (user) {
+      toast.success(`Welcome back, ${user.firstName || user.username}!`);
+    }
+  }, [user]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -73,7 +76,7 @@ const MyBids = () => {
     ? myBids 
     : myBids.filter(bid => bid.status === selectedStatus);
 
-  // const totalSpent = myBids.reduce((sum, bid) => sum + bid.amount, 0);
+  const totalSpent = myBids.reduce((sum, bid) => sum + bid.amount, 0);
   const winningBids = myBids.filter(bid => bid.status === 'winning').length;
   const activeBids = myBids.filter(bid => bid.auction?.status === 'active').length;
 
@@ -100,11 +103,13 @@ const MyBids = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Bids</h1>
-        <p className="text-gray-600 mt-2">Track your bidding activity and auction participation</p>
+        <p className="text-gray-600 mt-2">
+          Welcome back, {user?.firstName || user?.username || 'User'}! Track your bidding activity and auction participation
+        </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -113,6 +118,18 @@ const MyBids = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Bids</p>
               <p className="text-2xl font-bold text-gray-900">{myBids.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <TrendingUp className="h-8 w-8 text-green-500" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Spent</p>
+              <p className="text-2xl font-bold text-gray-900">${totalSpent.toLocaleString()}</p>
             </div>
           </div>
         </div>

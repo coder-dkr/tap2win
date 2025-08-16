@@ -182,14 +182,15 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
       case 'newAuction': {
         // ✅ REAL-TIME: Handle new auction creation
+        const newAuctionMessage = message as unknown as { auction: { id: string; title: string; startingPrice: number } };
         get().addNotification({
           id: `new-auction-${Date.now()}`,
           type: 'notification',
           notificationType: 'newAuction',
           title: 'New Auction Available',
-          message: `New auction: ${message.auction.title} - Starting at $${message.auction.startingPrice}`,
+          message: `New auction: ${newAuctionMessage.auction.title} - Starting at $${newAuctionMessage.auction.startingPrice}`,
           timestamp: new Date().toISOString(),
-          auctionId: message.auction.id,
+          auctionId: newAuctionMessage.auction.id,
           isRead: false
         });
         break;
@@ -287,6 +288,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
                            'Counter offer was rejected' :
                            'The auction has been completed';
 
+        const completedMessage = message as unknown as { auctionId: string; decision: string; finalPrice: number };
         get().addNotification({
           id: `auction-completed-${Date.now()}`,
           type: 'notification',
@@ -294,7 +296,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
           title,
           message: messageText,
           timestamp: new Date().toISOString(),
-          auctionId: message.auctionId,
+          auctionId: completedMessage.auctionId,
           isRead: false
         });
         break;
@@ -302,14 +304,20 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
       case 'winnerAnnouncement': {
         // ✅ REAL-TIME: Handle winner announcements
+        const winnerMessage = message as unknown as { 
+          winner: { username: string }; 
+          auctionTitle: string; 
+          winningAmount: number; 
+          auctionId: string 
+        };
         get().addNotification({
           id: `winner-${Date.now()}`,
           type: 'notification',
           notificationType: 'winnerAnnouncement',
           title: 'Auction Winner!',
-          message: `${message.winner.username} won "${message.auctionTitle}" for $${message.winningAmount}`,
+          message: `${winnerMessage.winner.username} won "${winnerMessage.auctionTitle}" for $${winnerMessage.winningAmount}`,
           timestamp: new Date().toISOString(),
-          auctionId: message.auctionId,
+          auctionId: winnerMessage.auctionId,
           isRead: false
         });
         break;
