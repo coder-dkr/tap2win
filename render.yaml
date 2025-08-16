@@ -17,7 +17,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://tap2win-auction-platform.onrender.com
+        value: https://tap2win-isk7.onrender.com
       - key: FROM_EMAIL
         value: noreply@tap2win.com
       - key: ADMIN_EMAIL
