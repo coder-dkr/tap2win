@@ -1,5 +1,5 @@
 # Stage 1: Build frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
@@ -8,7 +8,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Install backend dependencies
-FROM node:18-alpine AS backend-builder
+FROM node:20-alpine AS backend-builder
 WORKDIR /app/backend
 
 COPY backend/package*.json ./
@@ -16,11 +16,19 @@ RUN npm install --only=production
 COPY backend/ ./
 
 # Stage 3: Production image
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 
-# Install minimal deps
-RUN apk add --no-cache dumb-init
+# Install system dependencies for Puppeteer and other tools
+RUN apk add --no-cache \
+    dumb-init \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
 
 # Copy backend
 COPY --from=backend-builder /app/backend ./backend
@@ -30,6 +38,10 @@ COPY --from=frontend-builder /app/frontend/dist ./backend/public
 
 # Create logs/uploads dirs
 RUN mkdir -p /app/backend/logs /app/backend/uploads
+
+# Set Puppeteer environment variables
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Switch to non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
