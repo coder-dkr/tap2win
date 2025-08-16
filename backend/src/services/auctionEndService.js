@@ -16,10 +16,10 @@ class AuctionEndService {
     this.isRunning = true;
     console.log('Auction End Service started');
     
-    // Check for auctions to end every 30 seconds
+    // Check for auctions to end every 10 seconds for more responsive updates
     this.checkInterval = setInterval(async () => {
       await this.checkAndEndAuctions();
-    }, 30000);
+    }, 10000);
     
     // Cleanup processed status changes every 5 minutes
     this.cleanupInterval = setInterval(() => {
@@ -44,7 +44,8 @@ class AuctionEndService {
 
   async checkAndEndAuctions() {
     try {
-      // Update auction statuses based on time
+      console.log('🔄 Auction End Service: Checking for status updates...');
+      // Update auction statuses based on time (includes database updates)
       await this.updateAuctionStatuses();
       
       // Get auctions that should have ended
@@ -87,8 +88,9 @@ class AuctionEndService {
   async updateAuctionStatuses() {
     try {
       const now = new Date();
+      console.log(`🕐 Auction End Service: Current time: ${now.toISOString()}`);
       
-      // Check pending auctions that should be active (NO DATABASE UPDATE)
+      // Check pending auctions that should be active (WITH DATABASE UPDATE)
       const pendingToActive = await Auction.findAll({
         where: {
           status: 'pending',
@@ -100,6 +102,8 @@ class AuctionEndService {
           }
         }
       });
+      
+      console.log(`📊 Found ${pendingToActive.length} pending auctions that should be active`);
 
       for (const auction of pendingToActive) {
         // Check if we've already processed this status change
@@ -111,7 +115,10 @@ class AuctionEndService {
         // Mark as processed
         this.processedStatusChanges.add(statusChangeKey);
         
-        // ✅ REAL-TIME: Broadcast auction started (NO DATABASE UPDATE)
+        // ✅ DATABASE UPDATE: Update auction status to active
+        await auction.update({ status: 'active' });
+        
+        // ✅ REAL-TIME: Broadcast auction started
         broadcastToAll({
           type: 'auctionStarted',
           auctionId: auction.id,
@@ -121,16 +128,42 @@ class AuctionEndService {
           endTime: auction.endTime
         });
         
-        console.log(`Auction ${auction.id} started: ${auction.title}`);
+        console.log(`✅ Auction ${auction.id} started and updated in database: ${auction.title}`);
       }
 
-      // Check active auctions that should be ended (NO DATABASE UPDATE)
+      // Check active auctions that should be ended (WITH DATABASE UPDATE)
       const activeToEnded = await Auction.findAll({
         where: {
           status: 'active',
           endTime: {
             [require('sequelize').Op.lte]: now
           }
+        },
+        include: [
+          {
+            model: require('../models/Bid'),
+            as: 'bids',
+            order: [['amount', 'DESC']],
+            limit: 1,
+            include: [{
+              model: require('../models/User'),
+              as: 'bidder',
+              attributes: ['id', 'username', 'email']
+            }]
+          },
+          {
+            model: require('../models/User'),
+            as: 'seller',
+            attributes: ['id', 'username', 'email']
+          }
+        ]
+      });
+      
+      console.log(`📊 Found ${activeToEnded.length} active auctions that should be ended`);
+      activeToEnded.forEach(auction => {
+        console.log(`  - Auction ${auction.id}: "${auction.title}" (${auction.bids.length} bids)`);
+        if (auction.bids.length > 0) {
+          console.log(`    Highest bid: $${auction.bids[0].amount} by ${auction.bids[0].bidder?.username || 'Unknown'}`);
         }
       });
 
@@ -144,7 +177,28 @@ class AuctionEndService {
         // Mark as processed
         this.processedStatusChanges.add(statusChangeKey);
         
-        // ✅ REAL-TIME: Broadcast auction ended (NO DATABASE UPDATE)
+        // ✅ DATABASE UPDATE: Update auction status to ended and set seller decision
+        const updateData = { 
+          status: 'ended',
+          endTime: new Date()
+        };
+        
+        // Set seller decision to pending if there are bids
+        if (auction.bids && auction.bids.length > 0) {
+          updateData.sellerDecision = 'pending';
+          updateData.currentPrice = auction.bids[0].amount;
+          updateData.highestBidId = auction.bids[0].id;
+          console.log(`✅ Setting seller decision to pending for auction ${auction.id} with ${auction.bids.length} bids`);
+          console.log(`💰 Highest bid amount: ${auction.bids[0].amount}`);
+        } else {
+          console.log(`ℹ️ No bids found for auction ${auction.id}, not setting seller decision`);
+        }
+        
+        console.log(`💾 Updating auction ${auction.id} with data:`, updateData);
+        await auction.update(updateData);
+        console.log(`✅ Successfully updated auction ${auction.id} in database`);
+        
+        // ✅ REAL-TIME: Broadcast auction ended
         broadcastToAll({
           type: 'auctionEnded',
           auctionId: auction.id,
@@ -154,7 +208,12 @@ class AuctionEndService {
           endTime: auction.endTime
         });
         
-        console.log(`Auction ${auction.id} ended: ${auction.title}`);
+        console.log(`✅ Auction ${auction.id} ended and updated in database: ${auction.title}`);
+        
+        // If there are bids, also call endAuction for notifications and emails
+        if (auction.bids && auction.bids.length > 0) {
+          await this.endAuction(auction);
+        }
       }
     } catch (error) {
       console.error('Error checking auction statuses:', error);
@@ -163,19 +222,10 @@ class AuctionEndService {
 
   async endAuction(auction) {
     try {
-      console.log(`Ending auction: ${auction.id} - ${auction.title}`);
+      console.log(`Processing end auction notifications: ${auction.id} - ${auction.title}`);
 
-      // Update auction status
-      auction.status = 'ended';
-      auction.endTime = new Date();
-      
-      // Set current price to highest bid if exists
-      if (auction.bids.length > 0) {
-        auction.currentPrice = auction.bids[0].amount;
-        auction.highestBidId = auction.bids[0].id;
-      }
-      
-      await auction.save();
+      // Note: Database updates are now handled in updateAuctionStatuses()
+      // This method only handles notifications, emails, and broadcasts
 
       // Get winning bid and bidder
       const winningBid = auction.bids.length > 0 ? auction.bids[0] : null;

@@ -28,4 +28,14 @@ router.delete('/users/:id', adminController.deleteUser);
 router.get('/monitoring', adminController.getSystemStatus);
 router.get('/monitoring/activity', adminController.getRecentActivity);
 
+// ✅ ADMIN: Invoice and Email Management
+router.get('/invoices', validateQuery(schemas.adminPagination), adminController.getAllInvoices);
+router.get('/invoices/:id', adminController.getInvoiceById);
+router.get('/invoices/:id/download', adminController.downloadInvoice);
+
+// ✅ ADMIN: Email Management
+router.get('/emails', validateQuery(schemas.adminPagination), adminController.getAllEmails);
+router.get('/emails/:id', adminController.getEmailById);
+router.post('/emails/resend', adminController.resendEmail);
+
 module.exports = router;

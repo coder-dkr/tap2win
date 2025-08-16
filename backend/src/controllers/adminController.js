@@ -488,6 +488,199 @@ const getRecentActivity = async (req, res) => {
   }
 };
 
+// ✅ ADMIN: Invoice Management
+const getAllInvoices = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', status = '', type = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    // This would typically query an invoices table
+    // For now, we'll return a mock response
+    const invoices = [
+      {
+        id: '1',
+        invoiceNumber: 'INV-1234567890-001',
+        auctionTitle: 'MacBook Pro 2023',
+        buyerName: 'John Doe',
+        sellerName: 'Jane Smith',
+        amount: 1500.00,
+        status: 'paid',
+        type: 'auction_completion',
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        invoices,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: invoices.length,
+          totalPages: Math.ceil(invoices.length / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting invoices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get invoices'
+    });
+  }
+};
+
+const getInvoiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // This would typically query an invoices table
+    const invoice = {
+      id,
+      invoiceNumber: 'INV-1234567890-001',
+      auctionTitle: 'MacBook Pro 2023',
+      buyerName: 'John Doe',
+      sellerName: 'Jane Smith',
+      amount: 1500.00,
+      status: 'paid',
+      type: 'auction_completion',
+      createdAt: new Date().toISOString(),
+      details: {
+        finalAmount: 1500.00,
+        platformFee: 75.00,
+        sellerAmount: 1425.00
+      }
+    };
+
+    res.json({
+      success: true,
+      data: invoice
+    });
+  } catch (error) {
+    console.error('Error getting invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get invoice'
+    });
+  }
+};
+
+const downloadInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // This would typically generate or retrieve the actual PDF
+    res.json({
+      success: true,
+      message: 'Invoice download endpoint - would return actual PDF'
+    });
+  } catch (error) {
+    console.error('Error downloading invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download invoice'
+    });
+  }
+};
+
+// ✅ ADMIN: Email Management
+const getAllEmails = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', status = '', type = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    // This would typically query an emails table
+    const emails = [
+      {
+        id: '1',
+        to: 'john@example.com',
+        subject: 'Counter offer for MacBook Pro 2023',
+        type: 'counter_offer',
+        status: 'sent',
+        auctionTitle: 'MacBook Pro 2023',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: '2',
+        to: 'jane@example.com',
+        subject: 'Invoice for MacBook Pro 2023',
+        type: 'invoice',
+        status: 'sent',
+        auctionTitle: 'MacBook Pro 2023',
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        emails,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: emails.length,
+          totalPages: Math.ceil(emails.length / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting emails:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get emails'
+    });
+  }
+};
+
+const getEmailById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // This would typically query an emails table
+    const email = {
+      id,
+      to: 'john@example.com',
+      from: 'noreply@tap2win.com',
+      subject: 'Counter offer for MacBook Pro 2023',
+      type: 'counter_offer',
+      status: 'sent',
+      auctionTitle: 'MacBook Pro 2023',
+      content: 'Hello John, you have received a counter offer...',
+      createdAt: new Date().toISOString()
+    };
+
+    res.json({
+      success: true,
+      data: email
+    });
+  } catch (error) {
+    console.error('Error getting email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get email'
+    });
+  }
+};
+
+const resendEmail = async (req, res) => {
+  try {
+    const { emailId } = req.body;
+    
+    // This would typically resend the email
+    res.json({
+      success: true,
+      message: 'Email resent successfully'
+    });
+  } catch (error) {
+    console.error('Error resending email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to resend email'
+    });
+  }
+};
+
 module.exports = {
   getStats,
   getAllAuctions,
@@ -501,5 +694,11 @@ module.exports = {
   updateUser,
   deleteUser,
   getSystemStatus,
-  getRecentActivity
+  getRecentActivity,
+  getAllInvoices,
+  getInvoiceById,
+  downloadInvoice,
+  getAllEmails,
+  getEmailById,
+  resendEmail
 };

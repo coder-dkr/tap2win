@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice - {{auctionTitle}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #3b82f6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .invoice-details {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .amount {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Invoice for Your Sale</h1>
+        <p>Congratulations on completing your auction!</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{firstName}},</h2>
+        
+        <p>Your auction for <strong>{{auctionTitle}}</strong> has been successfully completed!</p>
+        
+        <div class="invoice-details">
+            <h3>Invoice Details</h3>
+            <p><strong>Invoice Number:</strong> {{invoiceNumber}}</p>
+            <p><strong>Date:</strong> {{invoiceDate}}</p>
+            <p><strong>Final Amount:</strong> <span class="amount">${{finalAmount}}</span></p>
+        </div>
+        
+        <p>A detailed PDF invoice has been attached to this email for your records.</p>
+        
+        <p><strong>Next Steps:</strong></p>
+        <ul>
+            <li>Review the attached invoice</li>
+            <li>Contact the buyer to arrange item pickup/delivery</li>
+            <li>Complete the transaction through the platform</li>
+        </ul>
+        
+        <p>Your earnings will be processed according to our platform's payment schedule.</p>
+        
+        <p>If you have any questions about your sale or need assistance, please contact our support team.</p>
+        
+        <p>Thank you for using Tap2Win!</p>
+        
+        <p>Best regards,<br>The Tap2Win Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent from Tap2Win Auction Platform</p>
+        <p>© 2024 Tap2Win. All rights reserved.</p>
+    </div>
+</body>
+</html>

@@ -119,13 +119,21 @@ class InvoiceService {
       // Generate invoice
       const invoice = await this.generateInvoice(auction, buyer, seller, finalAmount);
 
-      // Send to buyer
-      await emailService.sendInvoiceEmail(buyer, invoice, auction, true);
+      // ✅ REAL-TIME: Send to buyer with proper invoice data
+      await emailService.sendInvoiceEmail(buyer, {
+        buffer: invoice.buffer,
+        filename: invoice.filename,
+        data: invoice.data
+      }, auction, true);
 
-      // Send to seller
-      await emailService.sendInvoiceEmail(seller, invoice, auction, false);
+      // ✅ REAL-TIME: Send to seller with proper invoice data
+      await emailService.sendInvoiceEmail(seller, {
+        buffer: invoice.buffer,
+        filename: invoice.filename,
+        data: invoice.data
+      }, auction, false);
 
-      console.log(`Invoices sent for auction ${auction.id} - Amount: $${finalAmount}`);
+      console.log(`✅ REAL-TIME: Invoices sent for auction ${auction.id} - Amount: $${finalAmount}`);
 
       return invoice;
 

@@ -21,13 +21,15 @@ import {
   Activity,
   Settings,
   Trash2,
-  Search
+  Search,
+  FileText,
+  Mail
 } from 'lucide-react';
 
 const AdminPanel = () => {
   const { isConnected, notifications } = useWebSocketStore();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'auctions' | 'users' | 'monitoring'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'auctions' | 'users' | 'monitoring' | 'invoices' | 'emails'>('overview');
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalAuctions: 0,
@@ -47,6 +49,30 @@ const AdminPanel = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  
+  // ✅ ADMIN: Invoice and Email state
+  const [invoices, setInvoices] = useState<Array<{
+    id: string;
+    invoiceNumber: string;
+    auctionTitle: string;
+    buyerName: string;
+    sellerName: string;
+    amount: number;
+    status: string;
+    type: string;
+    createdAt: string;
+  }>>([]);
+  const [emails, setEmails] = useState<Array<{
+    id: string;
+    to: string;
+    subject: string;
+    type: string;
+    status: string;
+    auctionTitle: string;
+    createdAt: string;
+  }>>([]);
+  const [invoicePagination, setInvoicePagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [emailPagination, setEmailPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
   useEffect(() => {
     loadAdminData();
@@ -76,12 +102,14 @@ const AdminPanel = () => {
   const loadAdminData = async () => {
     setIsLoading(true);
     try {
-      const [statsData, auctionsData, usersData, systemData, activityData] = await Promise.all([
+      const [statsData, auctionsData, usersData, systemData, activityData, invoicesData, emailsData] = await Promise.all([
         adminService.getAdminStats(),
         adminService.getAllAuctions({ limit: 100 }),
         adminService.getAllUsers({ limit: 50 }),
         adminService.getSystemStatus(),
-        adminService.getRecentActivity()
+        adminService.getRecentActivity(),
+        adminService.getAllInvoices({ limit: 50 }),
+        adminService.getAllEmails({ limit: 50 })
       ]);
 
       setStats(statsData);
@@ -89,6 +117,10 @@ const AdminPanel = () => {
       setUsers(usersData.users || []);
       setSystemStatus(systemData);
       setRecentActivity(activityData || []);
+      setInvoices(invoicesData.invoices || []);
+      setInvoicePagination(invoicesData.pagination || {});
+      setEmails(emailsData.emails || []);
+      setEmailPagination(emailsData.pagination || {});
     } catch (error) {
       console.error('Failed to load admin data:', error);
       toast.error('Failed to load admin data');
@@ -328,6 +360,28 @@ const AdminPanel = () => {
             >
               <Activity className="h-4 w-4 inline mr-2" />
               Real-time Monitoring
+            </button>
+            <button
+              onClick={() => setActiveTab('invoices')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'invoices'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <FileText className="h-4 w-4 inline mr-2" />
+              Invoices
+            </button>
+            <button
+              onClick={() => setActiveTab('emails')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'emails'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Mail className="h-4 w-4 inline mr-2" />
+              Emails
             </button>
           </nav>
         </div>
@@ -718,6 +772,151 @@ const AdminPanel = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'invoices' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900">Invoice Management</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Invoice Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Auction
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Buyer
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Seller
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {invoice.invoiceNumber}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {invoice.auctionTitle}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {invoice.buyerName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {invoice.sellerName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          ${invoice.amount}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            invoice.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button className="text-blue-600 hover:text-blue-900">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {invoicePagination.total > 0 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  Showing {((invoicePagination.page - 1) * invoicePagination.limit) + 1} to {Math.min(invoicePagination.page * invoicePagination.limit, invoicePagination.total)} of {invoicePagination.total} invoices
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'emails' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900">Email Management</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        To
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Subject
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Auction
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {emails.map((email) => (
+                      <tr key={email.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {email.to}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {email.subject}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {email.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            email.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {email.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {email.auctionTitle}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button className="text-blue-600 hover:text-blue-900">
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button className="text-green-600 hover:text-green-900">
+                              <Mail className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {emailPagination.total > 0 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  Showing {((emailPagination.page - 1) * emailPagination.limit) + 1} to {Math.min(emailPagination.page * emailPagination.limit, emailPagination.total)} of {emailPagination.total} emails
+                </div>
+              )}
             </div>
           )}
         </div>

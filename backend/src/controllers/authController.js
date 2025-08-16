@@ -40,8 +40,9 @@ const register = asyncHandler(async (req, res) => {
   try {
     await emailService.sendWelcomeEmail(user);
   } catch (error) {
-    console.error('Failed to send welcome email:', error);
-    // Don't fail registration if email fails
+    console.error('❌ Failed to send welcome email:', error);
+    console.error('❌ User registration will continue without email');
+    // Don't fail registration if email fails - just log the error
   }
 
   // ✅ REAL-TIME: Notify all admins about new user registration

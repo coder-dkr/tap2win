@@ -104,3 +104,80 @@ export const getRecentActivity = async () => {
   const response = await adminApi.get('/monitoring/activity');
   return response.data.data;
 };
+
+// ✅ ADMIN: Invoice Management
+export const getAllInvoices = async (params: { page?: number; limit?: number; search?: string; status?: string; type?: string } = {}): Promise<{ invoices: Array<{
+  id: string;
+  invoiceNumber: string;
+  auctionTitle: string;
+  buyerName: string;
+  sellerName: string;
+  amount: number;
+  status: string;
+  type: string;
+  createdAt: string;
+}>; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+  const response = await adminApi.get('/invoices', { params });
+  return response.data.data;
+};
+
+export const getInvoiceById = async (id: string): Promise<{
+  id: string;
+  invoiceNumber: string;
+  auctionTitle: string;
+  buyerName: string;
+  sellerName: string;
+  amount: number;
+  status: string;
+  type: string;
+  createdAt: string;
+  details: {
+    finalAmount: number;
+    platformFee: number;
+    sellerAmount: number;
+  };
+}> => {
+  const response = await adminApi.get(`/invoices/${id}`);
+  return response.data.data;
+};
+
+export const downloadInvoice = async (id: string): Promise<Blob> => {
+  const response = await adminApi.get(`/invoices/${id}/download`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+// ✅ ADMIN: Email Management
+export const getAllEmails = async (params: { page?: number; limit?: number; search?: string; status?: string; type?: string } = {}): Promise<{ emails: Array<{
+  id: string;
+  to: string;
+  subject: string;
+  type: string;
+  status: string;
+  auctionTitle: string;
+  createdAt: string;
+}>; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+  const response = await adminApi.get('/emails', { params });
+  return response.data.data;
+};
+
+export const getEmailById = async (id: string): Promise<{
+  id: string;
+  to: string;
+  from: string;
+  subject: string;
+  type: string;
+  status: string;
+  auctionTitle: string;
+  content: string;
+  createdAt: string;
+}> => {
+  const response = await adminApi.get(`/emails/${id}`);
+  return response.data.data;
+};
+
+export const resendEmail = async (emailId: string): Promise<{ success: boolean; message: string }> => {
+  const response = await adminApi.post('/emails/resend', { emailId });
+  return response.data;
+};

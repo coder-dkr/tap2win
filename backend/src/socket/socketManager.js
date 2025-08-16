@@ -325,15 +325,23 @@ const broadcastToUser = (userId, data) => {
   broadcastToRoom(userRoomId, data);
 };
 
+// ✅ REAL-TIME: Broadcast to all connected clients (for global updates)
+const broadcastToAll = (data) => {
+  console.log(`Broadcasting to all clients:`, data.type);
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(JSON.stringify(data));
+      } catch (error) {
+        console.error('Error broadcasting to client:', error);
+      }
+    }
+  });
+};
+
 const broadcastToAuction = (auctionId, data) => {
   const auctionRoomId = `auction:${auctionId}`;
   broadcastToRoom(auctionRoomId, data);
-};
-
-const broadcastToAll = (data) => {
-  clients.forEach((client, clientId) => {
-    sendToClient(clientId, data);
-  });
 };
 
 const broadcastToAdmins = (data) => {

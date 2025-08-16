@@ -13,30 +13,54 @@ class EmailService {
 
   async loadTemplate(templateName) {
     if (this.templates.has(templateName)) {
+      console.log(`✅ REAL-TIME: Template ${templateName} loaded from cache`);
       return this.templates.get(templateName);
     }
 
     try {
       const templatePath = path.join(__dirname, '../templates', `${templateName}.hbs`);
+      console.log(`✅ REAL-TIME: Loading template from: ${templatePath}`);
+      
       const templateContent = await fs.readFile(templatePath, 'utf8');
+      console.log(`✅ REAL-TIME: Template content loaded, length: ${templateContent.length} characters`);
+      
       const compiledTemplate = handlebars.compile(templateContent);
       this.templates.set(templateName, compiledTemplate);
+      console.log(`✅ REAL-TIME: Template ${templateName} compiled and cached successfully`);
       return compiledTemplate;
     } catch (error) {
-      console.error(`Error loading template ${templateName}:`, error);
+      console.error(`❌ Error loading template ${templateName}:`, error);
+      console.error(`❌ Template path attempted: ${path.join(__dirname, '../templates', `${templateName}.hbs`)}`);
       return null;
     }
   }
 
   async sendEmail(to, subject, templateName, data = {}) {
     try {
+      // ✅ REAL-TIME: Check if SendGrid is configured
+      if (!process.env.SENDGRID_API_KEY) {
+        console.warn('SendGrid API key not configured, skipping email send');
+        return { success: false, message: 'SendGrid not configured' };
+      }
+
       let html = '';
       
       if (templateName) {
         const template = await this.loadTemplate(templateName);
         if (template) {
           html = template(data);
+          console.log(`✅ REAL-TIME: Template ${templateName} loaded and rendered successfully`);
+          console.log(`✅ REAL-TIME: HTML content length: ${html.length} characters`);
+        } else {
+          console.error(`❌ Template ${templateName} not found`);
+          throw new Error(`Template ${templateName} not found`);
         }
+      }
+
+      // ✅ REAL-TIME: Ensure we have content
+      if (!html && !data.html) {
+        console.error('❌ No HTML content generated for email');
+        throw new Error('No HTML content generated for email');
       }
 
       const msg = {
@@ -44,18 +68,29 @@ class EmailService {
         from: this.fromEmail,
         subject,
         html: html || data.html || '',
-        text: data.text || ''
+        text: data.text || html.replace(/<[^>]*>/g, '') || '' // Strip HTML tags for text version
       };
 
       if (data.attachments) {
         msg.attachments = data.attachments;
       }
 
+      console.log(`✅ REAL-TIME: Attempting to send email to ${to} with subject: ${subject}`);
+      console.log(`✅ REAL-TIME: Email content length: ${msg.html.length} characters`);
+      
       const result = await sgMail.send(msg);
-      console.log(`Email sent successfully to ${to}`);
+      console.log(`✅ REAL-TIME: Email sent successfully to ${to}`);
       return result;
     } catch (error) {
-      console.error('Email sending error:', error);
+      console.error('❌ Email sending error:', error);
+      console.error('❌ Error details:', {
+        to,
+        subject,
+        templateName,
+        htmlLength: html ? html.length : 0,
+        sendGridKey: process.env.SENDGRID_API_KEY ? 'Configured' : 'Not configured',
+        fromEmail: this.fromEmail
+      });
       throw error;
     }
   }
@@ -68,7 +103,8 @@ class EmailService {
       'welcome',
       {
         firstName: user.firstName,
-        username: user.username
+        username: user.username,
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173'
       }
     );
   }
@@ -215,6 +251,7 @@ class EmailService {
     const subject = `Invoice for ${auction.title}`;
     const template = isWinner ? 'invoice-buyer' : 'invoice-seller';
 
+    // ✅ REAL-TIME: Send email with PDF attachment
     await this.sendEmail(
       recipient.email,
       subject,
@@ -222,11 +259,21 @@ class EmailService {
       {
         firstName: recipient.firstName,
         auctionTitle: auction.title,
-        finalAmount: invoice.amount,
-        invoiceNumber: invoice.number,
-        invoiceDate: invoice.date
+        finalAmount: invoice.data.transaction.finalAmount,
+        invoiceNumber: invoice.data.invoiceNumber,
+        invoiceDate: invoice.data.invoiceDate,
+        attachments: [
+          {
+            content: invoice.buffer.toString('base64'),
+            filename: invoice.filename,
+            type: 'application/pdf',
+            disposition: 'attachment'
+          }
+        ]
       }
     );
+
+    console.log(`✅ REAL-TIME: Invoice email sent to ${recipient.email} for auction ${auction.id}`);
   }
 }
 
