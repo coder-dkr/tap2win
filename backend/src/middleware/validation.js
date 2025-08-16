@@ -86,7 +86,28 @@ const schemas = {
     sortBy: Joi.string().valid('createdAt', 'endTime', 'currentPrice', 'title'),
     sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
     status: Joi.string().valid('pending', 'active', 'ended', 'completed', 'cancelled').allow('', null),
-    category: Joi.string().allow('', null)
+    category: Joi.string().allow('', null),
+    search: Joi.string().allow('', null)
+  }),
+
+  adminPagination: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(50),
+    search: Joi.string().allow('', null)
+  }),
+
+  adminUserPagination: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(50),
+    role: Joi.string().valid('buyer', 'seller', 'admin').allow('', null),
+    search: Joi.string().allow('', null)
+  }),
+
+  adminAuctionPagination: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(50),
+    status: Joi.string().valid('pending', 'active', 'ended', 'completed', 'cancelled').allow('', null),
+    search: Joi.string().allow('', null)
   })
 };
 

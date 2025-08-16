@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAdmin } = require('../middleware/auth');
+const { validateQuery, schemas } = require('../middleware/validation');
 const adminController = require('../controllers/adminController');
 
 // All admin routes require admin role
@@ -10,7 +11,7 @@ router.use(requireAdmin);
 router.get('/stats', adminController.getStats);
 
 // Auction management
-router.get('/auctions', adminController.getAllAuctions);
+router.get('/auctions', validateQuery(schemas.adminAuctionPagination), adminController.getAllAuctions);
 router.post('/auctions/:id/start', adminController.startAuction);
 router.post('/auctions/:id/end', adminController.endAuction);
 router.post('/auctions/:id/reset', adminController.resetAuction);
@@ -18,7 +19,7 @@ router.put('/auctions/:id', adminController.updateAuction);
 router.delete('/auctions/:id', adminController.deleteAuction);
 
 // User management
-router.get('/users', adminController.getAllUsers);
+router.get('/users', validateQuery(schemas.adminUserPagination), adminController.getAllUsers);
 router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
