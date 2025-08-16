@@ -53,6 +53,8 @@ const Dashboard = () => {
   // ✅ REAL-TIME: Listen for real-time updates and refresh data
   useEffect(() => {
     // Listen for relevant notifications and refresh data
+    if (!notifications) return;
+    
     const relevantNotifications = notifications.filter(n => 
       n.notificationType === 'newBid' || 
       n.notificationType === 'auctionEnded' ||
@@ -90,6 +92,19 @@ const Dashboard = () => {
   };
 
   const updateStats = () => {
+    // Safety checks for undefined arrays
+    if (!myAuctions || !myBids) {
+      setStats({
+        activeAuctions: 0,
+        totalBids: 0,
+        winningBids: 0,
+        totalRevenue: 0,
+        recentAuctions: [],
+        recentBids: []
+      });
+      return;
+    }
+    
     const activeAuctions = myAuctions.filter(auction => auction.status === 'active').length;
     const totalBids = myBids.length;
     const winningBids = myBids.filter(bid => bid.isWinning).length;

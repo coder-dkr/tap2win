@@ -461,7 +461,8 @@ const AuctionDetail = () => {
               <div className="flex space-x-3">
                 <button
                   onClick={() => {
-                    const amount = (document.getElementById('counterAmount') as HTMLInputElement).value;
+                    const element = document.getElementById('counterAmount') as HTMLInputElement;
+                    const amount = element?.value;
                     if (amount) {
                       handleSellerDecision('counter_offer', parseFloat(amount));
                     }

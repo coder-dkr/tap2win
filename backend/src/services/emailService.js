@@ -82,7 +82,7 @@ class EmailService {
         firstName: user.firstName,
         auctionTitle: auction.title,
         bidAmount: bid.amount,
-        auctionUrl: `${process.env.FRONTEND_URL}/auctions/${auction.id}`
+        auctionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}`
       }
     );
   }
@@ -96,7 +96,7 @@ class EmailService {
         firstName: user.firstName,
         auctionTitle: auction.title,
         newBidAmount: newBid.amount,
-        auctionUrl: `${process.env.FRONTEND_URL}/auctions/${auction.id}`
+        auctionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}`
       }
     );
   }
@@ -119,7 +119,7 @@ class EmailService {
     const data = {
       firstName: seller.firstName,
       auctionTitle: auction.title,
-      auctionUrl: `${process.env.FRONTEND_URL}/auctions/${auction.id}/manage`
+      auctionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}/manage`
     };
 
     if (highestBid) {
@@ -186,7 +186,7 @@ class EmailService {
         firstName: bidder.firstName,
         auctionTitle: auction.title,
         counterAmount,
-        responseUrl: `${process.env.FRONTEND_URL}/auctions/${auction.id}/counter-offer`
+        responseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}/counter-offer`
       }
     );
   }

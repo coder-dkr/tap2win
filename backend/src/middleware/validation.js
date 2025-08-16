@@ -85,8 +85,8 @@ const schemas = {
     limit: Joi.number().integer().min(1).max(100).default(10),
     sortBy: Joi.string().valid('createdAt', 'endTime', 'currentPrice', 'title'),
     sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
-    status: Joi.string().valid('pending', 'active', 'ended', 'completed', 'cancelled'),
-    category: Joi.string()
+    status: Joi.string().valid('pending', 'active', 'ended', 'completed', 'cancelled').allow('', null),
+    category: Joi.string().allow('', null)
   })
 };
 

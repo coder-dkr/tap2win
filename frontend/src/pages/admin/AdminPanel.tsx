@@ -52,9 +52,11 @@ const AdminPanel = () => {
     loadAdminData();
   }, []);
 
-  // ✅ REAL-TIME: Listen for system activity and add to live feed
+  // ✅ REAL-TIME: Listen for system activity and add to live activity feed
   useEffect(() => {
     // Filter admin-relevant notifications and add to live activity feed
+    if (!notifications) return;
+    
     const adminNotifications = notifications.filter(n => 
       n.notificationType === 'newUserRegistered' || 
       n.notificationType === 'auctionEnded' ||

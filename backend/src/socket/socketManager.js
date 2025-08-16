@@ -4,6 +4,7 @@ const { User } = require('../models');
 const redisService = require('../services/redisService');
 
 let wss;
+let heartbeatInterval;
 const clients = new Map(); // Map to store client connections
 const rooms = new Map(); // Map to store room participants
 
@@ -110,7 +111,7 @@ const initializeWebSocket = (server) => {
   });
 
   // Heartbeat to keep connections alive and clean up dead connections
-  setInterval(() => {
+  heartbeatInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
       const client = Array.from(clients.values()).find(c => c.ws === ws);
       if (client) {
@@ -350,6 +351,16 @@ const getWebSocketServer = () => {
   return wss;
 };
 
+const cleanup = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  clients.clear();
+  rooms.clear();
+  console.log('WebSocket cleanup completed');
+};
+
 module.exports = {
   initializeWebSocket,
   getWebSocketServer,
@@ -357,5 +368,6 @@ module.exports = {
   broadcastToUser,
   broadcastToAll,
   broadcastToAdmins,
-  getAuctionParticipants
+  getAuctionParticipants,
+  cleanup
 };

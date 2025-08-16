@@ -10,7 +10,7 @@ require('dotenv').config();
 // Import configurations
 const { connectDB } = require('./config/database');
 const { connectRedis } = require('./config/redis');
-const { initializeWebSocket } = require('./socket/socketManager');
+const { initializeWebSocket, cleanup: cleanupWebSocket } = require('./socket/socketManager');
 const auctionEndService = require('./services/auctionEndService');
 const { testRedisConnection, showRedisConfig } = require('./utils/redisTest');
 
@@ -150,6 +150,8 @@ const startServer = async () => {
     // Graceful shutdown
     process.on('SIGTERM', () => {
       console.log('SIGTERM received, shutting down gracefully');
+      auctionEndService.stop();
+      cleanupWebSocket();
       server.close(() => {
         console.log('Process terminated');
         process.exit(0);
@@ -158,6 +160,8 @@ const startServer = async () => {
 
     process.on('SIGINT', () => {
       console.log('SIGINT received, shutting down gracefully');
+      auctionEndService.stop();
+      cleanupWebSocket();
       server.close(() => {
         console.log('Process terminated');
         process.exit(0);
