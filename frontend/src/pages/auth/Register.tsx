@@ -15,10 +15,10 @@ const Register = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    // watch,
   } = useForm<RegisterForm>();
 
-  const password = watch('password');
+  // const password = watch('password');
 
   const onSubmit = async (data: RegisterForm) => {
     try {

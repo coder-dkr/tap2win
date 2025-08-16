@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuctionStore } from '../../stores/auctionStore';
 import { useWebSocketStore } from '../../stores/websocketStore';
-import { useAuthStore } from '../../stores/authStore';
-import type { Auction, User } from '../../types';
+import * as adminService from '../../services/adminService';
+import type { Auction, AdminStats, User, SystemStatus, ActivityItem } from '../../types';
 import { 
   Users, 
   Gavel, 
@@ -20,22 +19,12 @@ import {
   XCircle,
   BarChart3,
   Activity,
-  Settings
+  Settings,
+  Trash2,
+  Search
 } from 'lucide-react';
 
-interface AdminStats {
-  totalUsers: number;
-  totalAuctions: number;
-  activeAuctions: number;
-  totalBids: number;
-  totalRevenue: number;
-  pendingAuctions: number;
-  completedAuctions: number;
-}
-
 const AdminPanel = () => {
-  const { user } = useAuthStore();
-  const { auctions, fetchAuctions, isLoading } = useAuctionStore();
   const { isConnected } = useWebSocketStore();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'auctions' | 'users' | 'monitoring'>('overview');
@@ -48,38 +37,51 @@ const AdminPanel = () => {
     pendingAuctions: 0,
     completedAuctions: 0,
   });
+  const [auctions, setAuctions] = useState<Auction[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
   const [showAuctionModal, setShowAuctionModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   useEffect(() => {
-    fetchAuctions({ limit: 100 }); // Fetch all auctions for admin
-    loadAdminStats();
+    loadAdminData();
   }, []);
 
-  const loadAdminStats = async () => {
+  const loadAdminData = async () => {
+    setIsLoading(true);
     try {
-      // In a real implementation, these would come from admin-specific API endpoints
-      const mockStats: AdminStats = {
-        totalUsers: 1250,
-        totalAuctions: auctions.length,
-        activeAuctions: auctions.filter(a => a.status === 'active').length,
-        totalBids: 3456,
-        totalRevenue: 125000,
-        pendingAuctions: auctions.filter(a => a.status === 'pending').length,
-        completedAuctions: auctions.filter(a => a.status === 'completed').length,
-      };
-      setStats(mockStats);
+      const [statsData, auctionsData, usersData, systemData, activityData] = await Promise.all([
+        adminService.getAdminStats(),
+        adminService.getAllAuctions({ limit: 100 }),
+        adminService.getAllUsers({ limit: 50 }),
+        adminService.getSystemStatus(),
+        adminService.getRecentActivity()
+      ]);
+
+      setStats(statsData);
+      setAuctions(auctionsData.auctions || []);
+      setUsers(usersData.users || []);
+      setSystemStatus(systemData);
+      setRecentActivity(activityData || []);
     } catch (error) {
-      toast.error('Failed to load admin statistics');
+      console.error('Failed to load admin data:', error);
+      toast.error('Failed to load admin data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleStartAuction = async (auctionId: string) => {
     try {
-      // This would call an admin API endpoint to start an auction
+      await adminService.startAuction(auctionId);
       toast.success('Auction started successfully');
-      fetchAuctions(); // Refresh the list
+      loadAdminData(); // Refresh the data
     } catch (error) {
+      console.error('Failed to start auction:', error);
       toast.error('Failed to start auction');
     }
   };
@@ -87,10 +89,11 @@ const AdminPanel = () => {
   const handleResetAuction = async (auctionId: string) => {
     if (window.confirm('Are you sure you want to reset this auction? This will clear all bids.')) {
       try {
-        // This would call an admin API endpoint to reset an auction
+        await adminService.resetAuction(auctionId);
         toast.success('Auction reset successfully');
-        fetchAuctions(); // Refresh the list
+        loadAdminData(); // Refresh the data
       } catch (error) {
+        console.error('Failed to reset auction:', error);
         toast.error('Failed to reset auction');
       }
     }
@@ -99,14 +102,48 @@ const AdminPanel = () => {
   const handleEndAuction = async (auctionId: string) => {
     if (window.confirm('Are you sure you want to end this auction?')) {
       try {
-        // This would call an admin API endpoint to end an auction
+        await adminService.endAuction(auctionId);
         toast.success('Auction ended successfully');
-        fetchAuctions(); // Refresh the list
+        loadAdminData(); // Refresh the data
       } catch (error) {
+        console.error('Failed to end auction:', error);
         toast.error('Failed to end auction');
       }
     }
   };
+
+  const handleDeleteAuction = async (auctionId: string) => {
+    if (window.confirm('Are you sure you want to delete this auction? This action cannot be undone.')) {
+      try {
+        await adminService.deleteAuction(auctionId);
+        toast.success('Auction deleted successfully');
+        loadAdminData(); // Refresh the data
+      } catch (error) {
+        console.error('Failed to delete auction:', error);
+        toast.error('Failed to delete auction');
+      }
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      try {
+        await adminService.deleteUser(userId);
+        toast.success('User deleted successfully');
+        loadAdminData(); // Refresh the data
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+        toast.error('Failed to delete user');
+      }
+    }
+  };
+
+  const filteredAuctions = auctions.filter(auction => {
+    const matchesSearch = auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         auction.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || auction.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -339,12 +376,40 @@ const AdminPanel = () => {
 
           {activeTab === 'auctions' && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Auction Management</h3>
                 <button className="btn btn-primary">
                   <Gavel className="h-4 w-4 mr-2" />
                   Create Auction
                 </button>
+              </div>
+
+              {/* Search and Filter */}
+              <div className="mb-4 flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search auctions..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="ended">Ended</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
 
               <div className="overflow-x-auto">
@@ -372,7 +437,7 @@ const AdminPanel = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {auctions.map((auction) => (
+                    {filteredAuctions.map((auction) => (
                       <tr key={auction.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -447,6 +512,13 @@ const AdminPanel = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
+                            <button
+                              onClick={() => handleDeleteAuction(auction.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Auction"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -460,14 +532,88 @@ const AdminPanel = () => {
           {activeTab === 'users' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900">User Management</h3>
-              <div className="bg-gray-50 rounded-lg p-8 text-center">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">User Management</h4>
-                <p className="text-gray-600 mb-4">View and manage all users in the system</p>
-                <button className="btn btn-primary">
-                  <Users className="h-4 w-4 mr-2" />
-                  View All Users
-                </button>
+              
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              {user.avatar ? (
+                                <img
+                                  className="h-10 w-10 rounded-full object-cover"
+                                  src={user.avatar}
+                                  alt={user.username}
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <Users className="h-5 w-5 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                            user.role === 'seller' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {user.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -479,21 +625,19 @@ const AdminPanel = () => {
                 <div className="bg-gray-50 rounded-lg p-6">
                   <h4 className="font-medium text-gray-900 mb-4">Live Activity Feed</h4>
                   <div className="space-y-3">
-                    <div className="flex items-center text-sm">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                      <span className="text-gray-600">New bid: $1,850 on "MacBook Pro 2023"</span>
-                      <span className="ml-auto text-gray-400">2s ago</span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                      <span className="text-gray-600">User "john_doe" joined auction "iPhone 15"</span>
-                      <span className="ml-auto text-gray-400">5s ago</span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></div>
-                      <span className="text-gray-600">Auction "Gaming Laptop" ending in 5 minutes</span>
-                      <span className="ml-auto text-gray-400">10s ago</span>
-                    </div>
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity) => (
+                        <div key={activity.id} className="flex items-center text-sm">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                          <span className="text-gray-600">{activity.message}</span>
+                          <span className="ml-auto text-gray-400">
+                            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-sm">No recent activity</div>
+                    )}
                   </div>
                 </div>
 
@@ -502,20 +646,44 @@ const AdminPanel = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">WebSocket Connection</span>
-                      <span className="text-sm font-medium text-green-600">Connected</span>
+                      <span className={`text-sm font-medium ${systemStatus?.websocket ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemStatus?.websocket ? 'Connected' : 'Disconnected'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Database</span>
-                      <span className="text-sm font-medium text-green-600">Healthy</span>
+                      <span className={`text-sm font-medium ${systemStatus?.database ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemStatus?.database ? 'Healthy' : 'Error'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Redis Cache</span>
-                      <span className="text-sm font-medium text-green-600">Connected</span>
+                      <span className={`text-sm font-medium ${systemStatus?.redis ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemStatus?.redis ? 'Connected' : 'Disconnected'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Email Service</span>
-                      <span className="text-sm font-medium text-green-600">Active</span>
+                      <span className={`text-sm font-medium ${systemStatus?.emailService ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemStatus?.emailService ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
+                    {systemStatus && (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Uptime</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {Math.floor(systemStatus.uptime / 3600)}h {Math.floor((systemStatus.uptime % 3600) / 60)}m
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Memory Usage</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {Math.round(systemStatus.memoryUsage)}%
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

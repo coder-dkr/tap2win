@@ -175,6 +175,7 @@ export interface PaginationParams {
   page?: number;
   limit?: number;
   sortBy?: string;
+  status?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -184,7 +185,7 @@ export interface UpdateProfileForm {
   lastName?: string;
   username?: string;
   avatar?: string;
-  role?: 'buyer' | 'seller';
+  role?: 'buyer' | 'seller' | 'admin';
 }
 
 export interface ChangePasswordForm {
@@ -236,10 +237,31 @@ export interface DashboardStats {
 export interface AdminStats {
   totalUsers: number;
   totalAuctions: number;
+  activeAuctions: number;
   totalBids: number;
   totalRevenue: number;
-  activeUsers: number;
+  completedAuctions: number;
   pendingAuctions: number;
+}
+
+export interface SystemStatus {
+  websocket: boolean;
+  database: boolean;
+  redis: boolean;
+  emailService: boolean;
+  uptime: number;
+  memoryUsage: number;
+  cpuUsage: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+  userId?: string;
+  auctionId?: string;
+  data?: Record<string, unknown>;
 }
 
 // File upload types

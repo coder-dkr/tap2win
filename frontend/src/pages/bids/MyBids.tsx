@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+// import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuctionStore } from '../../stores/auctionStore';
-import { useAuthStore } from '../../stores/authStore';
+// import { useAuthStore } from '../../stores/authStore';
 import { 
   Eye, 
   DollarSign, 
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const MyBids = () => {
-  const { user } = useAuthStore();
+  // const { user } = useAuthStore();
   const { myBids, fetchMyBids, isLoading } = useAuctionStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
@@ -73,7 +73,7 @@ const MyBids = () => {
     ? myBids 
     : myBids.filter(bid => bid.status === selectedStatus);
 
-  const totalSpent = myBids.reduce((sum, bid) => sum + bid.amount, 0);
+  // const totalSpent = myBids.reduce((sum, bid) => sum + bid.amount, 0);
   const winningBids = myBids.filter(bid => bid.status === 'winning').length;
   const activeBids = myBids.filter(bid => bid.auction?.status === 'active').length;
 

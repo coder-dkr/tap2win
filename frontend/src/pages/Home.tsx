@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Gavel, Clock, Users, TrendingUp } from 'lucide-react';
+import { Clock, Users, TrendingUp } from 'lucide-react';
 import AuctionFlowGuide from '../components/auctions/AuctionFlowGuide';
 
 const Home = () => {

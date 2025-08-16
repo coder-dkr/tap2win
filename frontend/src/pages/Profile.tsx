@@ -49,14 +49,27 @@ const Profile = () => {
 
   const onSubmitProfile = async (data: UpdateProfileForm) => {
     try {
-      const success = await updateProfile(data);
+      // Only pass allowed fields to updateProfile to fix type error
+      const { firstName, lastName, avatar, role } = data;
+      // Only allow 'buyer' or 'seller' for role
+      const safeRole = role === 'buyer' || role === 'seller' ? role : undefined;
+      const success = await updateProfile({
+        firstName,
+        lastName,
+        avatar,
+        role: safeRole,
+      });
       if (success) {
         toast.success('Profile updated successfully!');
-        resetProfile(data);
+        resetProfile({
+          ...data,
+          role: safeRole,
+        });
       } else {
         toast.error('Failed to update profile');
       }
     } catch (error) {
+      console.error(error);
       toast.error('Error updating profile');
     }
   };
@@ -74,6 +87,7 @@ const Profile = () => {
         toast.error('Failed to change password');
       }
     } catch (error) {
+      console.error(error);
       toast.error('Error changing password');
     }
   };
