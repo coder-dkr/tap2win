@@ -24,6 +24,7 @@ const auctionRoutes = require('./routes/auctions');
 const bidRoutes = require('./routes/bids');
 const sellerRoutes = require('./routes/seller');
 const adminRoutes = require('./routes/admin');
+const imageRoutes = require('./routes/images');
 
 const app = express();
 const PORT = process.env.PORT || 5100;
@@ -94,6 +95,7 @@ app.use('/api/auctions', auctionRoutes);
 app.use('/api/bids', authenticateToken, bidRoutes);
 app.use('/api/seller', authenticateToken, authorize(['seller', 'admin']), sellerRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
+app.use('/api/images', imageRoutes);
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {

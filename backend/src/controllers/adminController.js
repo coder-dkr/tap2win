@@ -1,4 +1,4 @@
-const { User, Auction, Bid } = require('../models');
+const { User, Auction, Bid, CloudinaryFile } = require('../models');
 const { sequelize } = require('../config/database');
 const redisService = require('../services/redisService');
 const { broadcastToAuction } = require('../socket/socketManager');
@@ -69,25 +69,31 @@ const getAllAuctions = async (req, res) => {
       where: whereClause,
       include: [
         { model: User, as: 'seller', attributes: ['id', 'username', 'email'] },
-        { model: Bid, as: 'bids', attributes: ['id'] }
+        { model: Bid, as: 'bids', attributes: ['id'] },
+        { model: CloudinaryFile, as: 'images', attributes: ['id', 'url', 'filename', 'width', 'height'] }
       ],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
 
-    const auctionsWithBidCount = auctions.rows.map(auction => ({
-      ...auction.toJSON(),
-      bidCount: auction.bids.length
-    }));
+    const auctionsWithBidCount = auctions.rows.map(auction => {
+      const auctionData = auction.toJSON();
+      auctionData.bidCount = auction.bids.length;
+      auctionData.images = auctionData.images?.map(img => img.url) || [];
+      return auctionData;
+    });
 
     res.json({
       success: true,
       data: {
         auctions: auctionsWithBidCount,
-        total: auctions.count,
-        page: parseInt(page),
-        totalPages: Math.ceil(auctions.count / limit)
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: auctions.count,
+          pages: Math.ceil(auctions.count / limit)
+        }
       }
     });
   } catch (error) {
@@ -120,7 +126,7 @@ const startAuction = async (req, res) => {
       data: { auctionId: auction.id, status: 'active' }
     });
 
-    res.json({ success: true, message: 'Auction started successfully', data: auction });
+    res.json({ success: true, message: 'Auction started successfully', data: { auction } });
   } catch (error) {
     console.error('Error starting auction:', error);
     res.status(500).json({ success: false, message: 'Failed to start auction' });
@@ -165,7 +171,7 @@ const endAuction = async (req, res) => {
       }
     });
 
-    res.json({ success: true, message: 'Auction ended successfully', data: auction });
+    res.json({ success: true, message: 'Auction ended successfully', data: { auction } });
   } catch (error) {
     console.error('Error ending auction:', error);
     res.status(500).json({ success: false, message: 'Failed to end auction' });
@@ -198,7 +204,7 @@ const resetAuction = async (req, res) => {
       data: { auctionId: auction.id, status: 'pending' }
     });
 
-    res.json({ success: true, message: 'Auction reset successfully', data: auction });
+    res.json({ success: true, message: 'Auction reset successfully', data: { auction } });
   } catch (error) {
     console.error('Error resetting auction:', error);
     res.status(500).json({ success: false, message: 'Failed to reset auction' });
@@ -230,7 +236,7 @@ const updateAuction = async (req, res) => {
 
     await auction.update(updateData);
 
-    res.json({ success: true, message: 'Auction updated successfully', data: auction });
+    res.json({ success: true, message: 'Auction updated successfully', data: { auction } });
   } catch (error) {
     console.error('Error updating auction:', error);
     res.status(500).json({ success: false, message: 'Failed to update auction' });
@@ -292,9 +298,12 @@ const getAllUsers = async (req, res) => {
       success: true,
       data: {
         users: users.rows,
-        total: users.count,
-        page: parseInt(page),
-        totalPages: Math.ceil(users.count / limit)
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: users.count,
+          pages: Math.ceil(users.count / limit)
+        }
       }
     });
   } catch (error) {
@@ -320,7 +329,7 @@ const getUserById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    res.json({ success: true, data: user });
+    res.json({ success: true, data: { user } });
   } catch (error) {
     console.error('Error getting user:', error);
     res.status(500).json({ success: false, message: 'Failed to get user' });
@@ -349,7 +358,7 @@ const updateUser = async (req, res) => {
     const userResponse = user.toJSON();
     delete userResponse.password;
 
-    res.json({ success: true, message: 'User updated successfully', data: userResponse });
+    res.json({ success: true, message: 'User updated successfully', data: { user: userResponse } });
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ success: false, message: 'Failed to update user' });

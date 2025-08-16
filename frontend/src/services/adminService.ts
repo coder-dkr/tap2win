@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AdminStats, Auction, User } from '../types';
+import type { AdminStats, Auction, User, AuctionListResponse, UserListResponse } from '../types';
 import { tokenService } from '../utils/cookies';
 
 const API_BASE = '/api/admin';
@@ -38,7 +38,7 @@ export const getAllAuctions = async (params: {
   limit?: number;
   status?: string;
   search?: string;
-}) => {
+}): Promise<AuctionListResponse> => {
   const response = await adminApi.get('/auctions', { params });
   return response.data.data;
 };
@@ -74,7 +74,7 @@ export const getAllUsers = async (params: {
   limit?: number;
   role?: string;
   search?: string;
-}) => {
+}): Promise<UserListResponse> => {
   const response = await adminApi.get('/users', { params });
   return response.data.data;
 };

@@ -89,6 +89,36 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface AuctionListResponse {
+  auctions: Auction[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface BidListResponse {
+  bids: Bid[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface UserListResponse {
+  users: User[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
 // WebSocket message types
 export interface WebSocketMessage {
   type: string;
@@ -122,6 +152,30 @@ export interface NotificationMessage extends WebSocketMessage {
   timestamp: string;
   auctionId?: string;
   isRead: boolean;
+}
+
+// Real-time auction update types
+export interface NewAuctionMessage extends WebSocketMessage {
+  type: 'newAuction';
+  auction: Auction;
+}
+
+export interface AuctionUpdateMessage extends WebSocketMessage {
+  type: 'auctionUpdate';
+  auction: Auction;
+}
+
+export interface AuctionEndedMessage extends WebSocketMessage {
+  type: 'auctionEnded';
+  auctionId: string;
+  auctionTitle: string;
+}
+
+export interface RealTimeBidMessage extends WebSocketMessage {
+  type: 'newBid';
+  auctionId: string;
+  bid: Bid;
+  auction: Auction;
 }
 
 // Form types

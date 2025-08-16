@@ -1,4 +1,4 @@
-const { Auction, User, Bid } = require('../models');
+const { Auction, User, Bid, CloudinaryFile } = require('../models');
 const { asyncHandler } = require('../middleware/errorHandler');
 const redisService = require('../services/redisService');
 const { broadcastToAll, broadcastToUser } = require('../socket/socketManager');
@@ -13,8 +13,7 @@ const createAuction = asyncHandler(async (req, res) => {
     startTime,
     endTime,
     category,
-    condition,
-    images
+    condition
   } = req.body;
 
   const auction = await Auction.create({
@@ -26,18 +25,24 @@ const createAuction = asyncHandler(async (req, res) => {
     endTime,
     category,
     condition,
-    images,
     sellerId: req.user.id,
     currentPrice: startingPrice
   });
 
-  // Load auction with seller data
+  // Load auction with seller data and images
   const auctionWithSeller = await Auction.findByPk(auction.id, {
-    include: [{
-      model: User,
-      as: 'seller',
-      attributes: ['id', 'username', 'firstName', 'lastName']
-    }]
+    include: [
+      {
+        model: User,
+        as: 'seller',
+        attributes: ['id', 'username', 'firstName', 'lastName']
+      },
+      {
+        model: CloudinaryFile,
+        as: 'images',
+        attributes: ['id', 'url', 'filename', 'width', 'height']
+      }
+    ]
   });
 
   // Cache auction data
@@ -63,7 +68,7 @@ const createAuction = asyncHandler(async (req, res) => {
       status: auctionWithSeller.status,
       startTime: auctionWithSeller.startTime,
       endTime: auctionWithSeller.endTime,
-      images: auctionWithSeller.images,
+      images: auctionWithSeller.images?.map(img => img.url) || [],
       seller: auctionWithSeller.seller
     }
   });
@@ -87,6 +92,23 @@ const createAuction = asyncHandler(async (req, res) => {
     }
   });
 });
+
+// Helper function to calculate auction status based on time (NO DATABASE UPDATE)
+const calculateAuctionStatus = (auction) => {
+  const now = new Date();
+  const startTime = new Date(auction.startTime);
+  const endTime = new Date(auction.endTime);
+  
+  if (now < startTime) {
+    return 'pending';
+  } else if (now >= startTime && now < endTime) {
+    return 'active';
+  } else if (now >= endTime) {
+    return 'ended';
+  }
+  
+  return auction.status;
+};
 
 const getAuctions = asyncHandler(async (req, res) => {
   const {
@@ -133,6 +155,11 @@ const getAuctions = asyncHandler(async (req, res) => {
           as: 'bidder',
           attributes: ['id', 'username']
         }]
+      },
+      {
+        model: CloudinaryFile,
+        as: 'images',
+        attributes: ['id', 'url', 'filename', 'width', 'height']
       }
     ],
     order: [[sortBy, sortOrder.toUpperCase()]],
@@ -140,12 +167,20 @@ const getAuctions = asyncHandler(async (req, res) => {
     offset: parseInt(offset)
   });
 
-  // Add current bid count from Redis
+  // Calculate auction statuses in real-time and add bid counts (NO DATABASE UPDATE)
   const auctionsWithBidCount = await Promise.all(
     auctions.map(async (auction) => {
+      // Calculate status based on current time (NO DATABASE UPDATE)
+      const calculatedStatus = calculateAuctionStatus(auction);
       const bidCount = await redisService.getAuctionBidCount(auction.id);
+      const auctionData = auction.toJSON();
+      
+      // Convert images array to URLs for backward compatibility
+      auctionData.images = auctionData.images?.map(img => img.url) || [];
+      
       return {
-        ...auction.toJSON(),
+        ...auctionData,
+        status: calculatedStatus, // Use the calculated status
         bidCount
       };
     })
@@ -189,6 +224,11 @@ const getAuctionById = asyncHandler(async (req, res) => {
           }],
           order: [['amount', 'DESC']],
           limit: 10
+        },
+        {
+          model: CloudinaryFile,
+          as: 'images',
+          attributes: ['id', 'url', 'filename', 'width', 'height']
         }
       ]
     });
@@ -204,15 +244,25 @@ const getAuctionById = asyncHandler(async (req, res) => {
     await redisService.cacheAuction(id, auction);
   }
 
+  // Calculate status in real-time (NO DATABASE UPDATE)
+  const calculatedStatus = calculateAuctionStatus(auction);
+
   // Get additional data from Redis
   const bidCount = await redisService.getAuctionBidCount(id);
   const highestBid = await redisService.getAuctionHighestBid(id);
 
+  // Properly serialize the auction data to avoid circular references
+  const auctionData = auction.toJSON();
+  
+  // Convert images array to URLs for backward compatibility
+  auctionData.images = auctionData.images?.map(img => img.url) || [];
+  
   res.json({
     success: true,
     data: {
       auction: {
-        ...auction,
+        ...auctionData,
+        status: calculatedStatus, // Use the calculated status
         bidCount,
         currentHighestBid: highestBid
       }
@@ -322,24 +372,38 @@ const getMyAuctions = asyncHandler(async (req, res) => {
 
   const { count, rows: auctions } = await Auction.findAndCountAll({
     where: whereClause,
-    include: [{
-      model: Bid,
-      as: 'highestBid',
-      include: [{
-        model: User,
-        as: 'bidder',
-        attributes: ['id', 'username']
-      }]
-    }],
+    include: [
+      {
+        model: Bid,
+        as: 'highestBid',
+        include: [{
+          model: User,
+          as: 'bidder',
+          attributes: ['id', 'username']
+        }]
+      },
+      {
+        model: CloudinaryFile,
+        as: 'images',
+        attributes: ['id', 'url', 'filename', 'width', 'height']
+      }
+    ],
     order: [['createdAt', 'DESC']],
     limit: parseInt(limit),
     offset: parseInt(offset)
   });
 
+  // Properly serialize auctions to avoid circular references
+  const serializedAuctions = auctions.map(auction => {
+    const auctionData = auction.toJSON();
+    auctionData.images = auctionData.images?.map(img => img.url) || [];
+    return auctionData;
+  });
+
   res.json({
     success: true,
     data: {
-      auctions,
+      auctions: serializedAuctions,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -361,13 +425,70 @@ const getMyBids = asyncHandler(async (req, res) => {
     include: [{
       model: Auction,
       as: 'auction',
-      include: [{
-        model: User,
-        as: 'seller',
-        attributes: ['id', 'username', 'firstName', 'lastName']
-      }]
+      include: [
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'username', 'firstName', 'lastName']
+        },
+        {
+          model: CloudinaryFile,
+          as: 'images',
+          attributes: ['id', 'url', 'filename', 'width', 'height']
+        }
+      ]
     }],
     order: [['createdAt', 'DESC']],
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+
+  // Properly serialize bids to avoid circular references
+  const serializedBids = bids.map(bid => {
+    const bidData = bid.toJSON();
+    if (bidData.auction && bidData.auction.images) {
+      bidData.auction.images = bidData.auction.images.map(img => img.url);
+    }
+    return bidData;
+  });
+
+  res.json({
+    success: true,
+    data: {
+      bids: serializedBids,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / limit)
+      }
+    }
+  });
+});
+
+const getAuctionBids = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+
+  const offset = (page - 1) * limit;
+
+  // Check if auction exists
+  const auction = await Auction.findByPk(id);
+  if (!auction) {
+    return res.status(404).json({
+      success: false,
+      message: 'Auction not found'
+    });
+  }
+
+  const { count, rows: bids } = await Bid.findAndCountAll({
+    where: { auctionId: id },
+    include: [{
+      model: User,
+      as: 'bidder',
+      attributes: ['id', 'username']
+    }],
+    order: [['amount', 'DESC']], // Show highest bids first
     limit: parseInt(limit),
     offset: parseInt(offset)
   });
@@ -393,5 +514,6 @@ module.exports = {
   updateAuction,
   deleteAuction,
   getMyAuctions,
-  getMyBids
+  getMyBids,
+  getAuctionBids
 };

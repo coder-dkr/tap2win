@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
-import type { ApiResponse, PaginatedResponse, User, Auction, Bid, Notification } from '../types';
+import type { ApiResponse, PaginatedResponse, AuctionListResponse, BidListResponse, User, Auction, Bid, Notification } from '../types';
 import { tokenService } from '../utils/cookies';
 
 class ApiClient {
@@ -123,7 +123,7 @@ class ApiClient {
     search?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }): Promise<ApiResponse<PaginatedResponse<Auction>>> {
+  }): Promise<ApiResponse<AuctionListResponse>> {
     return this.request({
       method: 'GET',
       url: '/auctions',
@@ -185,7 +185,7 @@ class ApiClient {
     page?: number;
     limit?: number;
     status?: string;
-  }): Promise<ApiResponse<PaginatedResponse<Auction>>> {
+  }): Promise<ApiResponse<AuctionListResponse>> {
     return this.request({
       method: 'GET',
       url: '/auctions/user/my-auctions',
@@ -205,7 +205,7 @@ class ApiClient {
   async getAuctionBids(auctionId: string, params?: {
     page?: number;
     limit?: number;
-  }): Promise<ApiResponse<PaginatedResponse<Bid>>> {
+  }): Promise<ApiResponse<BidListResponse>> {
     return this.request({
       method: 'GET',
       url: `/auctions/${auctionId}/bids`,
@@ -230,7 +230,7 @@ class ApiClient {
   async getMyBids(params?: {
     page?: number;
     limit?: number;
-  }): Promise<ApiResponse<PaginatedResponse<Bid>>> {
+  }): Promise<ApiResponse<BidListResponse>> {
     return this.request({
       method: 'GET',
       url: '/auctions/user/my-bids',

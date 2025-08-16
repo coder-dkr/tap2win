@@ -75,7 +75,7 @@ export const useAuctionStore = create<AuctionState>((set, get) => ({
 
       if (response.success && response.data) {
         set({
-          auctions: response.data.data,
+          auctions: response.data.auctions,
           pagination: response.data.pagination,
           isLoading: false,
         });
@@ -174,11 +174,10 @@ export const useAuctionStore = create<AuctionState>((set, get) => ({
         limit: params.limit || 10,
         status: params.status,
       });
-      console.log("DATA",response.data);
       if (response.success && response.data) {
         set({
-          myAuctions: response.data.data.auctions,
-          pagination: response.data.data.pagination,
+          myAuctions: response.data.auctions,
+          pagination: response.data.pagination,
           isLoading: false,
         });
       } else {
@@ -202,7 +201,7 @@ export const useAuctionStore = create<AuctionState>((set, get) => ({
 
       if (response.success && response.data) {
         set({
-          myBids: response.data.data,
+          myBids: response.data.bids,
           pagination: response.data.pagination,
           isLoading: false,
         });

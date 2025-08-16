@@ -2,6 +2,7 @@ const User = require('./User');
 const Auction = require('./Auction');
 const Bid = require('./Bid');
 const Notification = require('./Notification');
+const CloudinaryFile = require('./CloudinaryFile');
 
 // Define associations
 User.hasMany(Auction, {
@@ -63,9 +64,31 @@ Auction.belongsTo(Bid, {
   allowNull: true
 });
 
+// CloudinaryFile associations
+User.hasMany(CloudinaryFile, {
+  foreignKey: 'uploadedBy',
+  as: 'uploadedFiles'
+});
+
+CloudinaryFile.belongsTo(User, {
+  foreignKey: 'uploadedBy',
+  as: 'uploader'
+});
+
+Auction.hasMany(CloudinaryFile, {
+  foreignKey: 'auctionId',
+  as: 'images'
+});
+
+CloudinaryFile.belongsTo(Auction, {
+  foreignKey: 'auctionId',
+  as: 'auction'
+});
+
 module.exports = {
   User,
   Auction,
   Bid,
-  Notification
+  Notification,
+  CloudinaryFile
 };

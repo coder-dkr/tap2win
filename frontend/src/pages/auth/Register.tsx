@@ -235,6 +235,7 @@ const Register = () => {
                     <div className="text-sm text-gray-500">Place bids on auctions</div>
                   </div>
                 </label>
+
                 <label className="relative cursor-pointer">
                   <input
                     {...register('role', { required: 'Please select a role' })}
@@ -247,6 +248,7 @@ const Register = () => {
                     <div className="text-sm text-gray-500">Create and manage auctions</div>
                   </div>
                 </label>
+                
               </div>
               {errors.role && (
                 <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

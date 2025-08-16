@@ -64,10 +64,7 @@ const Auction = sequelize.define('Auction', {
     type: DataTypes.ENUM('pending', 'active', 'ended', 'completed', 'cancelled'),
     defaultValue: 'pending'
   },
-  images: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
-    defaultValue: []
-  },
+  // Images are now handled through CloudinaryFile association
   category: {
     type: DataTypes.STRING,
     allowNull: false

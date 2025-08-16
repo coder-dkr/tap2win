@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { WebSocketMessage, AuctionStateMessage, NewBidMessage, NotificationMessage, Bid } from '../types';
-import { useAuthStore } from './authStore';
 import { tokenService } from '../utils/cookies';
 
 interface WebSocketState {
@@ -15,6 +14,7 @@ interface WebSocketState {
     participantCount: number;
   } | null;
   notifications: NotificationMessage[];
+  subscribers: Set<(message: WebSocketMessage) => void>;
 }
 
 interface WebSocketActions {
@@ -31,6 +31,7 @@ interface WebSocketActions {
     participantCount: number;
   } | null) => void;
   handleMessage: (message: WebSocketMessage) => void;
+  subscribe: (callback: (message: WebSocketMessage) => void) => () => void;
 }
 
 type WebSocketStore = WebSocketState & WebSocketActions;
@@ -44,16 +45,16 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
   currentAuctionId: null,
   auctionState: null,
   notifications: [],
+  subscribers: new Set(),
 
   // Actions
   connect: () => {
-    const { user } = useAuthStore.getState();
-    if (!user || get().isConnected || get().isConnecting) return;
+    if (get().isConnected || get().isConnecting) return;
 
     set({ isConnecting: true });
 
     const token = tokenService.getToken();
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`;
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token || ''}`;
     
     const socket = new WebSocket(wsUrl);
 
@@ -88,9 +89,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
       
       // Attempt to reconnect after a delay
       setTimeout(() => {
-        if (useAuthStore.getState().isAuthenticated) {
-          get().connect();
-        }
+        get().connect();
       }, 3000);
     };
 
@@ -342,5 +341,25 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
       default:
         console.log('Unknown WebSocket message type:', message.type);
     }
+
+    // Notify all subscribers
+    const { subscribers } = get();
+    subscribers.forEach(callback => {
+      try {
+        callback(message);
+      } catch (error) {
+        console.error('Error in WebSocket subscriber callback:', error);
+      }
+    });
+  },
+
+  subscribe: (callback: (message: WebSocketMessage) => void) => {
+    const { subscribers } = get();
+    subscribers.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      subscribers.delete(callback);
+    };
   },
 }));

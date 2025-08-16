@@ -32,6 +32,9 @@ class AuctionEndService {
 
   async checkAndEndAuctions() {
     try {
+      // Update auction statuses based on time
+      await this.updateAuctionStatuses();
+      
       // Get auctions that should have ended
       const now = new Date();
       const endedAuctions = await Auction.findAll({
@@ -66,6 +69,65 @@ class AuctionEndService {
       }
     } catch (error) {
       console.error('Error checking auctions to end:', error);
+    }
+  }
+
+  async updateAuctionStatuses() {
+    try {
+      const now = new Date();
+      
+      // Check pending auctions that should be active (NO DATABASE UPDATE)
+      const pendingToActive = await Auction.findAll({
+        where: {
+          status: 'pending',
+          startTime: {
+            [require('sequelize').Op.lte]: now
+          },
+          endTime: {
+            [require('sequelize').Op.gt]: now
+          }
+        }
+      });
+
+      for (const auction of pendingToActive) {
+        // ✅ REAL-TIME: Broadcast auction started (NO DATABASE UPDATE)
+        broadcastToAll({
+          type: 'auctionStarted',
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          status: 'active',
+          startTime: auction.startTime,
+          endTime: auction.endTime
+        });
+        
+        console.log(`Auction ${auction.id} started: ${auction.title}`);
+      }
+
+      // Check active auctions that should be ended (NO DATABASE UPDATE)
+      const activeToEnded = await Auction.findAll({
+        where: {
+          status: 'active',
+          endTime: {
+            [require('sequelize').Op.lte]: now
+          }
+        }
+      });
+
+      for (const auction of activeToEnded) {
+        // ✅ REAL-TIME: Broadcast auction ended (NO DATABASE UPDATE)
+        broadcastToAll({
+          type: 'auctionEnded',
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          status: 'ended',
+          startTime: auction.startTime,
+          endTime: auction.endTime
+        });
+        
+        console.log(`Auction ${auction.id} ended: ${auction.title}`);
+      }
+    } catch (error) {
+      console.error('Error checking auction statuses:', error);
     }
   }
 

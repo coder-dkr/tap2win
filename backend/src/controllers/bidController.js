@@ -114,14 +114,29 @@ const placeBid = asyncHandler(async (req, res) => {
     }]
   });
 
-  // Emit real-time update to all auction participants
+  // ✅ REAL-TIME: Emit detailed bid update to all auction participants
   broadcastToAuction(auctionId, {
     type: 'newBid',
     bid: bidWithBidder.toPublic(),
     auction: {
       id: auction.id,
       currentPrice: amount,
-      bidCount
+      bidCount,
+      highestBidId: bid.id,
+      updatedAt: new Date().toISOString()
+    }
+  });
+
+  // ✅ REAL-TIME: Also broadcast to all users for auction list updates
+  broadcastToAll({
+    type: 'auctionUpdate',
+    auctionId: auction.id,
+    auction: {
+      id: auction.id,
+      currentPrice: amount,
+      bidCount,
+      highestBidId: bid.id,
+      updatedAt: new Date().toISOString()
     }
   });
 

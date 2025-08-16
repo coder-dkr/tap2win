@@ -36,10 +36,12 @@ const Navbar = () => {
 
             {isAuthenticated ? (
               <>
+               {(user?.role === 'admin' || user?.role === 'seller') && (
                 <Link to="/auctions/create" className="btn btn-primary">
                   <Plus className="h-5 w-5" />
                   <span className="ml-2">Create Auction</span>
                 </Link>
+              )}
 
                 <NotificationPanel />
                 {/* <div className="relative">
