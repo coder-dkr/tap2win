@@ -22,9 +22,5 @@
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
-  },
-  "dependencies": {
-    "@types/js-cookie": "^3.0.6",
-    "js-cookie": "^3.0.5"
   }
 }
