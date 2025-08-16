@@ -134,7 +134,7 @@ export interface RegisterForm {
   username: string;
   email: string;
   password: string;
-  confirmPassword: string;
+  confirmPassword?: string; // Optional - only used for frontend validation
   firstName: string;
   lastName: string;
   role: 'buyer' | 'seller';

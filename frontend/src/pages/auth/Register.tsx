@@ -22,7 +22,10 @@ const Register = () => {
 
   const onSubmit = async (data: RegisterForm) => {
     try {
-      const success = await registerUser(data);
+      // Remove confirmPassword from payload - backend doesn't expect it
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword, ...registrationData } = data;
+      const success = await registerUser(registrationData);
       if (success) {
         toast.success('Registration successful!');
         navigate('/dashboard');

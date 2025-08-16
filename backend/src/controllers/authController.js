@@ -1,16 +1,17 @@
 const { User, Notification } = require('../models');
+const { Op } = require('sequelize');
 const { generateToken } = require('../utils/jwt');
 const { asyncHandler } = require('../middleware/errorHandler');
 const emailService = require('../services/emailService');
 const { broadcastToAdmins, broadcastToAll } = require('../socket/socketManager');
 
 const register = asyncHandler(async (req, res) => {
-  const { username, email, password, firstName, lastName } = req.body;
+  const { username, email, password, firstName, lastName, role } = req.body;
 
   // Check if user already exists
   const existingUser = await User.findOne({
     where: {
-      $or: [{ email }, { username }]
+      [Op.or]: [{ email }, { username }]
     }
   });
 
@@ -28,7 +29,8 @@ const register = asyncHandler(async (req, res) => {
     email,
     password,
     firstName,
-    lastName
+    lastName,
+    role
   });
 
   // Generate token
