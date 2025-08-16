@@ -34,7 +34,7 @@ const Layout = () => {
       switch (message.type) {
         case 'newAuction':
           // Show toast for new auctions (works for all users)
-          toast.success(`New auction: ${message.auction?.title || 'Auction'}`);
+          toast.success(`New auction: ${message.auctionTitle || 'Auction'}`);
           break;
           
         case 'auctionStarted':
