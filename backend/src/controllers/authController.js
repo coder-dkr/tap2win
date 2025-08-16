@@ -42,6 +42,55 @@ const register = asyncHandler(async (req, res) => {
     // Don't fail registration if email fails
   }
 
+  // ✅ REAL-TIME: Notify all admins about new user registration
+  try {
+    // Create notification for admins
+    const adminUsers = await User.findAll({ where: { role: 'admin' } });
+    for (const admin of adminUsers) {
+      await Notification.create({
+        userId: admin.id,
+        type: 'new_user_registered',
+        title: 'New User Registered',
+        message: `${firstName} ${lastName} (${username}) registered as a ${user.role || 'buyer'}`,
+        data: {
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role || 'buyer',
+          fullName: `${firstName} ${lastName}`
+        }
+      });
+    }
+
+    // Broadcast to all admins in real-time
+    broadcastToAdmins({
+      type: 'notification',
+      notificationType: 'newUserRegistered',
+      title: 'New User Registered',
+      message: `${firstName} ${lastName} (${username}) registered as a ${user.role || 'buyer'}`,
+      timestamp: new Date().toISOString(),
+      userId: user.id,
+      isRead: false
+    });
+
+    // Broadcast to all users for activity feed
+    broadcastToAll({
+      type: 'systemActivity',
+      activityType: 'userRegistration',
+      message: `New ${user.role || 'buyer'} joined the platform`,
+      timestamp: new Date().toISOString(),
+      data: {
+        userId: user.id,
+        username: user.username,
+        role: user.role || 'buyer'
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to broadcast user registration:', error);
+    // Don't fail registration if broadcast fails
+  }
+
   res.status(201).json({
     success: true,
     message: 'User registered successfully',

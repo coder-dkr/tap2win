@@ -116,7 +116,7 @@ export interface NewBidMessage extends WebSocketMessage {
 export interface NotificationMessage extends WebSocketMessage {
   type: 'notification';
   id: string;
-  notificationType: 'newBid' | 'outbid' | 'auctionEnded' | 'bidAccepted' | 'bidRejected' | 'counterOffer' | 'newAuction' | 'auctionCompleted' | 'auctionCreated' | 'counterOfferSent' | 'counterOfferAccepted' | 'counterOfferRejected';
+  notificationType: 'newBid' | 'outbid' | 'auctionEnded' | 'bidAccepted' | 'bidRejected' | 'counterOffer' | 'newAuction' | 'auctionCompleted' | 'auctionCreated' | 'counterOfferSent' | 'counterOfferAccepted' | 'counterOfferRejected' | 'newUserRegistered' | 'auctionWon' | 'winnerAnnouncement';
   title: string;
   message: string;
   timestamp: string;

@@ -300,6 +300,28 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
         break;
       }
 
+      case 'winnerAnnouncement': {
+        // ✅ REAL-TIME: Handle winner announcements
+        get().addNotification({
+          id: `winner-${Date.now()}`,
+          type: 'notification',
+          notificationType: 'winnerAnnouncement',
+          title: 'Auction Winner!',
+          message: `${message.winner.username} won "${message.auctionTitle}" for $${message.winningAmount}`,
+          timestamp: new Date().toISOString(),
+          auctionId: message.auctionId,
+          isRead: false
+        });
+        break;
+      }
+
+      case 'systemActivity': {
+        // ✅ REAL-TIME: Handle system activity for activity feeds
+        // This can be used by admin panel or dashboard for live activity updates
+        console.log('System Activity:', message.message);
+        break;
+      }
+
       case 'pong':
         // Handle pong response
         break;

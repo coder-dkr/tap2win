@@ -330,6 +330,14 @@ const broadcastToAll = (data) => {
   });
 };
 
+const broadcastToAdmins = (data) => {
+  clients.forEach((client, clientId) => {
+    if (client.user && client.user.role === 'admin') {
+      sendToClient(clientId, data);
+    }
+  });
+};
+
 const getAuctionParticipants = (auctionId) => {
   const room = rooms.get(`auction:${auctionId}`);
   return room ? room.size : 0;
@@ -348,5 +356,6 @@ module.exports = {
   broadcastToAuction,
   broadcastToUser,
   broadcastToAll,
+  broadcastToAdmins,
   getAuctionParticipants
 };

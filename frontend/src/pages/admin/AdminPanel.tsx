@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 const AdminPanel = () => {
-  const { isConnected } = useWebSocketStore();
+  const { isConnected, notifications } = useWebSocketStore();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'auctions' | 'users' | 'monitoring'>('overview');
   const [stats, setStats] = useState<AdminStats>({
@@ -41,6 +41,7 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [liveActivityFeed, setLiveActivityFeed] = useState<Array<{id: string; message: string; timestamp: string; type: string}>>([]);
   const [selectedAuction, setSelectedAuction] = useState<Auction | null>(null);
   const [showAuctionModal, setShowAuctionModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +51,25 @@ const AdminPanel = () => {
   useEffect(() => {
     loadAdminData();
   }, []);
+
+  // ✅ REAL-TIME: Listen for system activity and add to live feed
+  useEffect(() => {
+    // Filter admin-relevant notifications and add to live activity feed
+    const adminNotifications = notifications.filter(n => 
+      n.notificationType === 'newUserRegistered' || 
+      n.notificationType === 'auctionEnded' ||
+      n.notificationType === 'winnerAnnouncement'
+    ).slice(0, 10); // Keep last 10
+
+    const activityItems = adminNotifications.map(n => ({
+      id: n.id,
+      message: n.message,
+      timestamp: n.timestamp,
+      type: n.notificationType
+    }));
+
+    setLiveActivityFeed(activityItems);
+  }, [notifications]);
 
   const loadAdminData = async () => {
     setIsLoading(true);
@@ -623,20 +643,31 @@ const AdminPanel = () => {
               <h3 className="text-lg font-semibold text-gray-900">Real-time Monitoring</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h4 className="font-medium text-gray-900 mb-4">Live Activity Feed</h4>
-                  <div className="space-y-3">
-                    {recentActivity.length > 0 ? (
-                      recentActivity.map((activity) => (
-                        <div key={activity.id} className="flex items-center text-sm">
-                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                          <span className="text-gray-600">{activity.message}</span>
-                          <span className="ml-auto text-gray-400">
+                  <h4 className="font-medium text-gray-900 mb-4">
+                    Live Activity Feed 
+                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                      LIVE
+                    </span>
+                  </h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {liveActivityFeed.length > 0 ? (
+                      liveActivityFeed.map((activity) => (
+                        <div key={activity.id} className="flex items-center text-sm animate-fadeIn">
+                          <div className={`w-2 h-2 rounded-full mr-3 ${
+                            activity.type === 'newUserRegistered' ? 'bg-blue-500' :
+                            activity.type === 'auctionEnded' ? 'bg-red-500' :
+                            activity.type === 'winnerAnnouncement' ? 'bg-green-500' :
+                            'bg-gray-500'
+                          }`}></div>
+                          <span className="text-gray-600 flex-1">{activity.message}</span>
+                          <span className="ml-auto text-gray-400 text-xs">
                             {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                           </span>
                         </div>
                       ))
                     ) : (
-                      <div className="text-gray-500 text-sm">No recent activity</div>
+                      <div className="text-gray-500 text-sm">No live activity yet</div>
                     )}
                   </div>
                 </div>

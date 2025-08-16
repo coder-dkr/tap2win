@@ -1,7 +1,7 @@
 const { Auction, Bid, User, Notification } = require('../models');
 const redisService = require('./redisService');
 const emailService = require('./emailService');
-const { broadcastToAuction, broadcastToUser } = require('../socket/socketManager');
+const { broadcastToAuction, broadcastToUser, broadcastToAll, broadcastToAdmins } = require('../socket/socketManager');
 
 class AuctionEndService {
   constructor() {
@@ -89,17 +89,44 @@ class AuctionEndService {
       const winningBid = auction.bids.length > 0 ? auction.bids[0] : null;
       const winner = winningBid ? winningBid.bidder : null;
 
-      // Broadcast auction ended to all participants
+      // ✅ REAL-TIME: Broadcast auction ended to all participants
       broadcastToAuction(auction.id, {
         type: 'auctionEnded',
         auctionId: auction.id,
+        auctionTitle: auction.title,
         status: 'ended',
         currentPrice: auction.currentPrice,
         winner: winner ? {
           id: winner.id,
           username: winner.username
         } : null,
+        hasWinner: !!winningBid,
+        winningAmount: winningBid ? winningBid.amount : null,
         endTime: auction.endTime
+      });
+
+      // ✅ REAL-TIME: Broadcast to all users for activity feed
+      broadcastToAll({
+        type: 'systemActivity',
+        activityType: 'auctionEnded',
+        message: `Auction "${auction.title}" has ended ${winningBid ? `with a winning bid of $${winningBid.amount}` : 'with no bids'}`,
+        timestamp: new Date().toISOString(),
+        data: {
+          auctionId: auction.id,
+          hasWinner: !!winningBid,
+          winningAmount: winningBid ? winningBid.amount : null
+        }
+      });
+
+      // ✅ REAL-TIME: Notify admins about auction closure
+      broadcastToAdmins({
+        type: 'notification',
+        notificationType: 'auctionEnded',
+        title: 'Auction Ended',
+        message: `Auction "${auction.title}" has ended ${winningBid ? `with winner: ${winner.username} ($${winningBid.amount})` : 'with no bids'}`,
+        timestamp: new Date().toISOString(),
+        auctionId: auction.id,
+        isRead: false
       });
 
       // Create notifications
@@ -155,13 +182,41 @@ class AuctionEndService {
           }
         });
 
-        // Notify winner via socket
+        // ✅ REAL-TIME: Notify winner via socket
         broadcastToUser(winner.id, {
           type: 'notification',
-          notificationType: 'auction_won',
-          title: 'Auction Won!',
-          message: `You won the auction "${auction.title}"`,
-          auctionId: auction.id
+          notificationType: 'auctionWon',
+          title: 'Congratulations! You Won!',
+          message: `You won the auction "${auction.title}" with a bid of $${winningBid.amount}`,
+          timestamp: new Date().toISOString(),
+          auctionId: auction.id,
+          isRead: false
+        });
+
+        // ✅ REAL-TIME: Broadcast winner announcement to ALL users
+        broadcastToAll({
+          type: 'winnerAnnouncement',
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          winner: {
+            id: winner.id,
+            username: winner.username
+          },
+          winningAmount: winningBid.amount,
+          timestamp: new Date().toISOString()
+        });
+
+        // ✅ REAL-TIME: Activity feed for all users
+        broadcastToAll({
+          type: 'systemActivity',
+          activityType: 'auctionWon',
+          message: `${winner.username} won "${auction.title}" for $${winningBid.amount}`,
+          timestamp: new Date().toISOString(),
+          data: {
+            auctionId: auction.id,
+            winnerId: winner.id,
+            winningAmount: winningBid.amount
+          }
         });
       }
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useAuctionStore } from '../stores/auctionStore';
 import { useWebSocketStore } from '../stores/websocketStore';
-import { Gavel, Plus, Clock, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Gavel, Plus, Clock, TrendingUp, DollarSign } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardStats {
@@ -29,7 +29,7 @@ interface DashboardStats {
 const Dashboard = () => {
   const { user } = useAuthStore();
   const { fetchMyAuctions, fetchMyBids, myAuctions, myBids } = useAuctionStore();
-  const { isConnected } = useWebSocketStore();
+  const { isConnected, notifications } = useWebSocketStore();
   
   const [stats, setStats] = useState<DashboardStats>({
     activeAuctions: 0,
@@ -49,6 +49,31 @@ const Dashboard = () => {
     // Update stats when auction/bid data changes
     updateStats();
   }, [myAuctions, myBids]);
+
+  // ✅ REAL-TIME: Listen for real-time updates and refresh data
+  useEffect(() => {
+    // Listen for relevant notifications and refresh data
+    const relevantNotifications = notifications.filter(n => 
+      n.notificationType === 'newBid' || 
+      n.notificationType === 'auctionEnded' ||
+      n.notificationType === 'bidAccepted' ||
+      n.notificationType === 'auctionCompleted'
+    );
+
+    if (relevantNotifications.length > 0) {
+      // Refresh data when relevant events occur
+      loadDashboardData();
+    }
+  }, [notifications]);
+
+  // ✅ REAL-TIME: Periodic refresh for real-time stats
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const loadDashboardData = async () => {
     setIsLoading(true);

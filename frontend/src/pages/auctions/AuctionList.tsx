@@ -11,9 +11,7 @@ const AuctionList = () => {
     auctions,
     pagination,
     isLoading,
-    filters,
     fetchAuctions,
-    setFilters,
     clearFilters,
   } = useAuctionStore();
 

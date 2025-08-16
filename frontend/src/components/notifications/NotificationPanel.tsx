@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWebSocketStore } from '../../stores/websocketStore';
 // import type { NotificationMessage } from '../../types';
-import { Bell, X, CheckCircle, AlertTriangle, DollarSign, Clock, Gavel } from 'lucide-react';
+import { Bell, X, CheckCircle, AlertTriangle, DollarSign, Clock, Gavel, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationPanel = () => {
@@ -34,41 +34,53 @@ const NotificationPanel = () => {
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'counterOfferRejected':
         return <X className="h-5 w-5 text-red-500" />;
+      case 'newUserRegistered':
+        return <Users className="h-5 w-5 text-blue-500" />;
+      case 'auctionWon':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'winnerAnnouncement':
+        return <Gavel className="h-5 w-5 text-purple-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  const getNotificationColor = (notificationType: string) => {
-    switch (notificationType) {
-      case 'newBid':
-        return 'bg-green-50 border-green-200';
-      case 'outbid':
-        return 'bg-red-50 border-red-200';
-      case 'auctionEnded':
-        return 'bg-blue-50 border-blue-200';
-      case 'bidAccepted':
-        return 'bg-green-50 border-green-200';
-      case 'bidRejected':
-        return 'bg-red-50 border-red-200';
-      case 'counterOffer':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'newAuction':
-        return 'bg-blue-50 border-blue-200';
-      case 'auctionCompleted':
-        return 'bg-green-50 border-green-200';
-      case 'auctionCreated':
-        return 'bg-green-50 border-green-200';
-      case 'counterOfferSent':
-        return 'bg-blue-50 border-blue-200';
-      case 'counterOfferAccepted':
-        return 'bg-green-50 border-green-200';
-      case 'counterOfferRejected':
-        return 'bg-red-50 border-red-200';
-      default:
-        return 'bg-gray-50 border-gray-200';
-    }
-  };
+  // const getNotificationColor = (notificationType: string) => {
+  //   switch (notificationType) {
+  //     case 'newBid':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'outbid':
+  //       return 'bg-red-50 border-red-200';
+  //     case 'auctionEnded':
+  //       return 'bg-blue-50 border-blue-200';
+  //     case 'bidAccepted':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'bidRejected':
+  //       return 'bg-red-50 border-red-200';
+  //     case 'counterOffer':
+  //       return 'bg-yellow-50 border-yellow-200';
+  //     case 'newAuction':
+  //       return 'bg-blue-50 border-blue-200';
+  //     case 'auctionCompleted':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'auctionCreated':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'counterOfferSent':
+  //       return 'bg-blue-50 border-blue-200';
+  //     case 'counterOfferAccepted':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'counterOfferRejected':
+  //       return 'bg-red-50 border-red-200';
+  //     case 'newUserRegistered':
+  //       return 'bg-blue-50 border-blue-200';
+  //     case 'auctionWon':
+  //       return 'bg-green-50 border-green-200';
+  //     case 'winnerAnnouncement':
+  //       return 'bg-purple-50 border-purple-200';
+  //     default:
+  //       return 'bg-gray-50 border-gray-200';
+  //   }
+  // };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
