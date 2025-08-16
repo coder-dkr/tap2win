@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to Tap2Win</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 Welcome to Tap2Win!</h1>
+        <p>Your journey to exciting auctions starts here</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{firstName}}!</h2>
+        
+        <p>Welcome to Tap2Win, the premier real-time auction platform where every bid counts and excitement never stops!</p>
+        
+        <h3>What you can do on Tap2Win:</h3>
+        <ul>
+            <li>🚀 Create and manage your own auctions</li>
+            <li>💰 Place real-time bids on exciting items</li>
+            <li>🔔 Get instant notifications for new bids and updates</li>
+            <li>📱 Enjoy a seamless mobile experience</li>
+            <li>🤝 Negotiate with counter-offers</li>
+        </ul>
+        
+        <p>Your account has been successfully created with username: <strong>{{username}}</strong></p>
+        
+        <div style="text-align: center;">
+            <a href="{{frontendUrl}}/dashboard" class="button">Start Bidding Now</a>
+        </div>
+        
+        <h3>Getting Started:</h3>
+        <ol>
+            <li>Browse active auctions on our homepage</li>
+            <li>Create your first auction to sell items</li>
+            <li>Place bids on items you're interested in</li>
+            <li>Set up your profile and preferences</li>
+        </ol>
+        
+        <p>If you have any questions or need assistance, don't hesitate to contact our support team at support@tap2win.com</p>
+    </div>
+    
+    <div class="footer">
+        <p>© 2024 Tap2Win. All rights reserved.</p>
+        <p>This email was sent to you because you registered for a Tap2Win account.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: tap2win-auction-platform
+    env: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health   # <-- match your Express route
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5100
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        value: https://tap2win-auction-platform.onrender.com
+      - key: FROM_EMAIL
+        value: noreply@tap2win.com
+      - key: ADMIN_EMAIL
+        value: admin@tap2win.com
+      - key: ADMIN_PASSWORD
+        value: admin20042104hayooo
+    secrets:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false

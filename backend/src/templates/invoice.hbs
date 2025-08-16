@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice - {{invoiceNumber}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+        }
+        .company-info {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .invoice-info, .client-info {
+            flex: 1;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .invoice-table th, .invoice-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .invoice-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .auction-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{company.name}}</h1>
+        <p>{{company.address}}</p>
+        <p>Email: {{company.email}} | Phone: {{company.phone}}</p>
+    </div>
+
+    <div class="invoice-details">
+        <div class="invoice-info">
+            <h2>INVOICE</h2>
+            <p><strong>Invoice Number:</strong> {{invoiceNumber}}</p>
+            <p><strong>Date:</strong> {{invoiceDate}}</p>
+        </div>
+        <div class="client-info">
+            <h3>Bill To:</h3>
+            <p><strong>{{buyer.name}}</strong></p>
+            <p>Email: {{buyer.email}}</p>
+            <p>Username: {{buyer.username}}</p>
+        </div>
+    </div>
+
+    <div class="auction-details">
+        <h3>Auction Details:</h3>
+        <p><strong>Item:</strong> {{auction.title}}</p>
+        <p><strong>Description:</strong> {{auction.description}}</p>
+        <p><strong>Category:</strong> {{auction.category}}</p>
+        <p><strong>Condition:</strong> {{auction.condition}}</p>
+    </div>
+
+    <table class="invoice-table">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Final Auction Price</td>
+                <td>${{transaction.finalAmount}}</td>
+            </tr>
+            <tr>
+                <td>Platform Fee (5%)</td>
+                <td>${{transaction.platformFee}}</td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>Total Amount</strong></td>
+                <td><strong>${{transaction.finalAmount}}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px;">
+        <h3>Seller Information:</h3>
+        <p><strong>Seller:</strong> {{seller.name}}</p>
+        <p><strong>Email:</strong> {{seller.email}}</p>
+        <p><strong>Username:</strong> {{seller.username}}</p>
+        <p><strong>Seller Receives:</strong> ${{transaction.sellerAmount}}</p>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <h3>Payment Terms:</h3>
+        <ul>
+            <li>Payment is due immediately upon auction completion</li>
+            <li>All transactions are processed securely through Tap2Win</li>
+            <li>Platform fees are automatically deducted from the final amount</li>
+            <li>Contact support@tap2win.com for any payment issues</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for using Tap2Win!</p>
+        <p>This is an automatically generated invoice. Please keep this for your records.</p>
+        <p>© 2024 {{company.name}}. All rights reserved.</p>
+    </div>
+</body>
+</html>

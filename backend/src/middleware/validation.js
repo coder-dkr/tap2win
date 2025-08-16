@@ -1,0 +1,97 @@
+const Joi = require('joi');
+
+const validateRequest = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: error.details.map(detail => detail.message)
+      });
+    }
+    next();
+  };
+};
+
+const validateQuery = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.query);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query validation error',
+        errors: error.details.map(detail => detail.message)
+      });
+    }
+    next();
+  };
+};
+
+// Common validation schemas
+const schemas = {
+  register: Joi.object({
+    username: Joi.string().alphanum().min(3).max(50).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).max(100).required(),
+    firstName: Joi.string().min(1).max(50).required(),
+    lastName: Joi.string().min(1).max(50).required(),
+    role: Joi.string().valid('buyer', 'seller').required()
+  }),
+
+  login: Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required()
+  }),
+
+  createAuction: Joi.object({
+    title: Joi.string().min(3).max(200).required(),
+    description: Joi.string().min(10).max(2000).required(),
+    startingPrice: Joi.number().positive().precision(2).required(),
+    bidIncrement: Joi.number().positive().precision(2).required(),
+    startTime: Joi.date().iso().min('now').required(),
+    endTime: Joi.date().iso().greater(Joi.ref('startTime')).required(),
+    category: Joi.string().required(),
+    condition: Joi.string().valid('new', 'like_new', 'good', 'fair', 'poor').default('good'),
+    images: Joi.array().items(Joi.string().uri()).max(10).default([])
+  }),
+
+  placeBid: Joi.object({
+    amount: Joi.number().positive().precision(2).required()
+  }),
+
+  sellerDecision: Joi.object({
+    decision: Joi.string().valid('accept', 'reject', 'counter_offer').required(),
+    counterOfferAmount: Joi.when('decision', {
+      is: 'counter_offer',
+      then: Joi.number().positive().precision(2).required(),
+      otherwise: Joi.forbidden()
+    })
+  }),
+
+  counterOfferResponse: Joi.object({
+    response: Joi.string().valid('accept', 'reject').required()
+  }),
+
+  updateProfile: Joi.object({
+    firstName: Joi.string().min(1).max(50),
+    lastName: Joi.string().min(1).max(50),
+    avatar: Joi.string().uri(),
+    role: Joi.string().valid('buyer', 'seller')
+  }),
+
+  pagination: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    sortBy: Joi.string().valid('createdAt', 'endTime', 'currentPrice', 'title'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+    status: Joi.string().valid('pending', 'active', 'ended', 'completed', 'cancelled'),
+    category: Joi.string()
+  })
+};
+
+module.exports = {
+  validateRequest,
+  validateQuery,
+  schemas
+};
