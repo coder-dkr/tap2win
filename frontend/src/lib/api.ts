@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 import type { ApiResponse, PaginatedResponse, User, Auction, Bid, Notification } from '../types';
+import { tokenService } from '../utils/cookies';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -16,7 +17,7 @@ class ApiClient {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
+        const token = tokenService.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -32,7 +33,7 @@ class ApiClient {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('token');
+          tokenService.removeToken();
           window.location.href = '/login';
         }
         return Promise.reject(error);

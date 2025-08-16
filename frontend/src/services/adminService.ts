@@ -1,11 +1,34 @@
 import axios from 'axios';
 import type { AdminStats, Auction, User } from '../types';
+import { tokenService } from '../utils/cookies';
 
 const API_BASE = '/api/admin';
 
+// Create axios instance with auth interceptor
+const adminApi = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add auth interceptor
+adminApi.interceptors.request.use(
+  (config) => {
+    const token = tokenService.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Admin Statistics
 export const getAdminStats = async (): Promise<AdminStats> => {
-  const response = await axios.get(`${API_BASE}/stats`);
+  const response = await adminApi.get('/stats');
   return response.data.data;
 };
 
@@ -16,32 +39,32 @@ export const getAllAuctions = async (params: {
   status?: string;
   search?: string;
 }) => {
-  const response = await axios.get(`${API_BASE}/auctions`, { params });
+  const response = await adminApi.get('/auctions', { params });
   return response.data.data;
 };
 
 export const startAuction = async (auctionId: string) => {
-  const response = await axios.post(`${API_BASE}/auctions/${auctionId}/start`);
+  const response = await adminApi.post(`/auctions/${auctionId}/start`);
   return response.data;
 };
 
 export const endAuction = async (auctionId: string) => {
-  const response = await axios.post(`${API_BASE}/auctions/${auctionId}/end`);
+  const response = await adminApi.post(`/auctions/${auctionId}/end`);
   return response.data;
 };
 
 export const resetAuction = async (auctionId: string) => {
-  const response = await axios.post(`${API_BASE}/auctions/${auctionId}/reset`);
+  const response = await adminApi.post(`/auctions/${auctionId}/reset`);
   return response.data;
 };
 
 export const updateAuction = async (auctionId: string, data: Partial<Auction>) => {
-  const response = await axios.put(`${API_BASE}/auctions/${auctionId}`, data);
+  const response = await adminApi.put(`/auctions/${auctionId}`, data);
   return response.data;
 };
 
 export const deleteAuction = async (auctionId: string) => {
-  const response = await axios.delete(`${API_BASE}/auctions/${auctionId}`);
+  const response = await adminApi.delete(`/auctions/${auctionId}`);
   return response.data;
 };
 
@@ -52,32 +75,32 @@ export const getAllUsers = async (params: {
   role?: string;
   search?: string;
 }) => {
-  const response = await axios.get(`${API_BASE}/users`, { params });
+  const response = await adminApi.get('/users', { params });
   return response.data.data;
 };
 
 export const getUserById = async (userId: string) => {
-  const response = await axios.get(`${API_BASE}/users/${userId}`);
+  const response = await adminApi.get(`/users/${userId}`);
   return response.data.data;
 };
 
 export const updateUser = async (userId: string, data: Partial<User>) => {
-  const response = await axios.put(`${API_BASE}/users/${userId}`, data);
+  const response = await adminApi.put(`/users/${userId}`, data);
   return response.data;
 };
 
 export const deleteUser = async (userId: string) => {
-  const response = await axios.delete(`${API_BASE}/users/${userId}`);
+  const response = await adminApi.delete(`/users/${userId}`);
   return response.data;
 };
 
 // System Monitoring
 export const getSystemStatus = async () => {
-  const response = await axios.get(`${API_BASE}/monitoring`);
+  const response = await adminApi.get('/monitoring');
   return response.data.data;
 };
 
 export const getRecentActivity = async () => {
-  const response = await axios.get(`${API_BASE}/monitoring/activity`);
+  const response = await adminApi.get('/monitoring/activity');
   return response.data.data;
 };

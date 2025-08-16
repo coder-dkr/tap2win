@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '../types';
 import api from '../lib/api';
+import { tokenService, userDataService } from '../utils/cookies';
 
 interface AuthState {
   user: User | null;
@@ -56,7 +57,8 @@ export const useAuthStore = create<AuthStore>()(
           
           if (response.success && response.data) {
             const { user, token } = response.data;
-            localStorage.setItem('token', token);
+            tokenService.setToken(token);
+            userDataService.setUserData(user);
             set({
               user,
               token,
@@ -82,7 +84,8 @@ export const useAuthStore = create<AuthStore>()(
           
           if (response.success && response.data) {
             const { user, token } = response.data;
-            localStorage.setItem('token', token);
+            tokenService.setToken(token);
+            userDataService.setUserData(user);
             set({
               user,
               token,
@@ -102,7 +105,8 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        localStorage.removeItem('token');
+        tokenService.removeToken();
+        userDataService.removeUserData();
         set({
           user: null,
           token: null,
@@ -112,7 +116,9 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       checkAuth: async () => {
-        const token = localStorage.getItem('token');
+        const token = tokenService.getToken();
+        const userData = userDataService.getUserData();
+        
         if (!token) {
           set({
             user: null,
@@ -125,6 +131,17 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           set({ isLoading: true });
+          
+          // Try to use cached user data first
+          if (userData) {
+            set({
+              user: userData,
+              token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+          }
+          
           const response = await api.getProfile();
           
           if (response.success && response.data) {
@@ -136,7 +153,8 @@ export const useAuthStore = create<AuthStore>()(
             });
           } else {
             // Token is invalid, clear auth state
-            localStorage.removeItem('token');
+            tokenService.removeToken();
+            userDataService.removeUserData();
             set({
               user: null,
               token: null,
@@ -146,7 +164,8 @@ export const useAuthStore = create<AuthStore>()(
           }
         } catch (error) {
           console.error('Auth check error:', error);
-          localStorage.removeItem('token');
+          tokenService.removeToken();
+          userDataService.removeUserData();
           set({
             user: null,
             token: null,

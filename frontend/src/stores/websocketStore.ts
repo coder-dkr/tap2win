@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { WebSocketMessage, AuctionStateMessage, NewBidMessage, NotificationMessage, Bid } from '../types';
 import { useAuthStore } from './authStore';
+import { tokenService } from '../utils/cookies';
 
 interface WebSocketState {
   socket: WebSocket | null;
@@ -51,7 +52,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
     set({ isConnecting: true });
 
-    const token = localStorage.getItem('token');
+    const token = tokenService.getToken();
     const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`;
     
     const socket = new WebSocket(wsUrl);
