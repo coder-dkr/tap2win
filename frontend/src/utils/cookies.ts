@@ -2,9 +2,9 @@ import Cookies from 'js-cookie';
 
 // Cookie configuration
 const COOKIE_CONFIG = {
-  expires: 7, // 7 days
+  expires: 30, // 30 days for better persistence
   secure: import.meta.env.PROD, // HTTPS only in production
-  sameSite: 'strict' as const,
+  sameSite: 'lax' as const, // More permissive for better compatibility
   path: '/'
 };
 

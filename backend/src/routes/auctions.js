@@ -15,7 +15,7 @@ router.get('/user/my-bids', authenticateToken, validateQuery(schemas.pagination)
 
 // Auction bids routes - MUST come before /:id route
 router.get('/:id/bids', optionalAuth, validateQuery(schemas.pagination), auctionController.getAuctionBids);
-router.post('/:id/bids', authenticateToken, authorize(['buyer', 'admin']), validateRequest(schemas.placeBid), bidController.placeBid);
+router.post('/:auctionId/bids', authenticateToken, authorize(['buyer', 'admin']), validateRequest(schemas.placeBid), bidController.placeBid);
 
 // Individual auction route
 router.get('/:id', optionalAuth, auctionController.getAuctionById);

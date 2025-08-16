@@ -32,10 +32,8 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          tokenService.removeToken();
-          window.location.href = '/login';
-        }
+        // Don't automatically logout on 401 errors
+        // Let the calling code handle authentication errors
         return Promise.reject(error);
       }
     );

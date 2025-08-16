@@ -60,8 +60,8 @@ const testUpstashRedis = async () => {
       const bidData = await redisClient.get('test:auction:123:highest_bid');
       
       if (bidData) {
-        const parsedData = JSON.parse(bidData);
-        if (parsedData.amount === 100) {
+        // Upstash Redis returns parsed object directly, no need to parse again
+        if (bidData.amount === 100) {
           console.log('✅ Upstash Redis auction data operations successful');
         }
       }

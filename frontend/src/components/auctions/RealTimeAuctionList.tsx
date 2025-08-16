@@ -13,7 +13,7 @@ const RealTimeAuctionList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { auctions, pagination, isLoading, fetchAuctions } = useAuctionStore();
-  const { connect, isConnected } = useWebSocketStore();
+  const { isConnected } = useWebSocketStore();
   
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -22,13 +22,6 @@ const RealTimeAuctionList: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
   const processedAuctionsRef = useRef<Set<string>>(new Set());
-
-  // Connect to WebSocket on mount
-  useEffect(() => {
-    if (!isConnected) {
-      connect();
-    }
-  }, [connect, isConnected]);
 
   // Fetch initial auctions
   useEffect(() => {
@@ -220,11 +213,31 @@ const RealTimeAuctionList: React.FC = () => {
     });
   };
 
-  // Show all auctions in one list, sorted by latest first
-  const sortedAuctions = liveAuctions.sort((a, b) => {
-    // Sort by creation date (newest first)
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  // Show all auctions in one list, sorted by latest first, with status filtering
+  const filteredAndSortedAuctions = liveAuctions
+    .filter(auction => {
+      if (!filterStatus) return true;
+      
+      // Calculate real-time status
+      const now = new Date();
+      const startTime = new Date(auction.startTime);
+      const endTime = new Date(auction.endTime);
+      
+      let realTimeStatus = auction.status;
+      if (now < startTime) {
+        realTimeStatus = 'pending';
+      } else if (now >= startTime && now < endTime) {
+        realTimeStatus = 'active';
+      } else if (now >= endTime) {
+        realTimeStatus = 'ended';
+      }
+      
+      return realTimeStatus === filterStatus;
+    })
+    .sort((a, b) => {
+      // Sort by creation date (newest first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -335,16 +348,16 @@ const RealTimeAuctionList: React.FC = () => {
         ) : (
           <div className="space-y-8">
             {/* All Auctions in One List */}
-            {sortedAuctions.length > 0 && (
+            {filteredAndSortedAuctions.length > 0 && (
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   <h2 className="text-xl font-bold text-gray-900">
-                    All Auctions ({sortedAuctions.length})
+                    {filterStatus ? `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Auctions` : 'All Auctions'} ({filteredAndSortedAuctions.length})
                   </h2>
                 </div>
                 <div className="space-y-4">
-                  {sortedAuctions.map((auction) => (
+                  {filteredAndSortedAuctions.map((auction) => (
                     <RealTimeAuctionCard
                       key={auction.id}
                       auction={auction}
@@ -357,7 +370,7 @@ const RealTimeAuctionList: React.FC = () => {
             )}
 
             {/* No Auctions */}
-            {sortedAuctions.length === 0 && !isLoading && (
+            {filteredAndSortedAuctions.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Gavel className="w-8 h-8 text-gray-400" />

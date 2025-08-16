@@ -8,9 +8,15 @@ class RedisService {
   }
 
   async getAuctionHighestBid(auctionId) {
-    const key = `auction:${auctionId}:highest_bid`;
-    const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    try {
+      const key = `auction:${auctionId}:highest_bid`;
+      const data = await redisClient.get(key);
+      // Upstash Redis returns the parsed object directly, no need to parse again
+      return data || null;
+    } catch (error) {
+      console.error('Error getting auction highest bid:', error);
+      return null;
+    }
   }
 
   async setAuctionBidCount(auctionId, count) {
@@ -58,7 +64,8 @@ class RedisService {
   async getUserSession(userId) {
     const key = `user:${userId}:session`;
     const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    // Upstash Redis returns the parsed object directly, no need to parse again
+    return data || null;
   }
 
   async deleteUserSession(userId) {
@@ -73,7 +80,8 @@ class RedisService {
 
   async getNotificationFromQueue() {
     const data = await redisClient.rpop('notification_queue');
-    return data ? JSON.parse(data) : null;
+    // Upstash Redis returns the parsed object directly, no need to parse again
+    return data || null;
   }
 
   // Rate limiting
@@ -109,9 +117,15 @@ class RedisService {
   }
 
   async getCachedAuction(auctionId) {
-    const key = `auction:${auctionId}:data`;
-    const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    try {
+      const key = `auction:${auctionId}:data`;
+      const data = await redisClient.get(key);
+      // Upstash Redis returns the parsed object directly, no need to parse again
+      return data || null;
+    } catch (error) {
+      console.error('Error getting cached auction:', error);
+      return null;
+    }
   }
 
   async deleteCachedAuction(auctionId) {
@@ -136,8 +150,14 @@ class RedisService {
   }
 
   async get(key) {
-    const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    try {
+      const data = await redisClient.get(key);
+      // Upstash Redis returns the parsed object directly, no need to parse again
+      return data || null;
+    } catch (error) {
+      console.error('Error getting from Redis:', error);
+      return null;
+    }
   }
 
   async del(key) {

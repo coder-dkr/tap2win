@@ -105,6 +105,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
+        console.log('🔄 User logout initiated');
         tokenService.removeToken();
         userDataService.removeUserData();
         set({
@@ -145,6 +146,8 @@ export const useAuthStore = create<AuthStore>()(
           const response = await api.getProfile();
           
           if (response.success && response.data) {
+            // Update user data in cookies with fresh data
+            userDataService.setUserData(response.data.user);
             set({
               user: response.data.user,
               token,
@@ -152,7 +155,15 @@ export const useAuthStore = create<AuthStore>()(
               isLoading: false,
             });
           } else {
-            // Token is invalid, clear auth state
+            // Keep existing auth state for API errors
+            // Only logout if explicitly needed
+            set({ isLoading: false });
+          }
+        } catch (error) {
+          console.error('Auth check error:', error);
+          // Don't automatically logout on network errors
+          // Only logout if it's a specific auth error
+          if (error instanceof Error && error.message.includes('401')) {
             tokenService.removeToken();
             userDataService.removeUserData();
             set({
@@ -161,17 +172,10 @@ export const useAuthStore = create<AuthStore>()(
               isAuthenticated: false,
               isLoading: false,
             });
+          } else {
+            // Keep existing auth state for network errors
+            set({ isLoading: false });
           }
-        } catch (error) {
-          console.error('Auth check error:', error);
-          tokenService.removeToken();
-          userDataService.removeUserData();
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
         }
       },
 

@@ -173,7 +173,7 @@ const getAuctions = asyncHandler(async (req, res) => {
       // Calculate status based on current time (NO DATABASE UPDATE)
       const calculatedStatus = calculateAuctionStatus(auction);
       const bidCount = await redisService.getAuctionBidCount(auction.id);
-      const auctionData = auction.toJSON();
+      const auctionData = auction.toJSON ? auction.toJSON() : auction;
       
       // Convert images array to URLs for backward compatibility
       auctionData.images = auctionData.images?.map(img => img.url) || [];
@@ -252,7 +252,7 @@ const getAuctionById = asyncHandler(async (req, res) => {
   const highestBid = await redisService.getAuctionHighestBid(id);
 
   // Properly serialize the auction data to avoid circular references
-  const auctionData = auction.toJSON();
+  const auctionData = auction.toJSON ? auction.toJSON() : auction;
   
   // Convert images array to URLs for backward compatibility
   auctionData.images = auctionData.images?.map(img => img.url) || [];
@@ -395,7 +395,7 @@ const getMyAuctions = asyncHandler(async (req, res) => {
 
   // Properly serialize auctions to avoid circular references
   const serializedAuctions = auctions.map(auction => {
-    const auctionData = auction.toJSON();
+    const auctionData = auction.toJSON ? auction.toJSON() : auction;
     auctionData.images = auctionData.images?.map(img => img.url) || [];
     return auctionData;
   });
@@ -445,7 +445,7 @@ const getMyBids = asyncHandler(async (req, res) => {
 
   // Properly serialize bids to avoid circular references
   const serializedBids = bids.map(bid => {
-    const bidData = bid.toJSON();
+    const bidData = bid.toJSON ? bid.toJSON() : bid;
     if (bidData.auction && bidData.auction.images) {
       bidData.auction.images = bidData.auction.images.map(img => img.url);
     }

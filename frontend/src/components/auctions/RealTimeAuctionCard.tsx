@@ -217,7 +217,7 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
         return 'text-gray-600 bg-gray-100';
     }
   };
-  console.log('Auction',auction)
+  
   // Calculate real-time status (NO DATABASE UPDATE)
   const now = new Date();
   const startTime = new Date(auction.startTime);

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuctionStore } from '../../stores/auctionStore';
+import { useWebSocketStore } from '../../stores/websocketStore';
+import type { WebSocketMessage } from '../../types';
 import { 
   Plus, 
   Edit, 
@@ -18,11 +20,33 @@ import {
 
 const MyAuctions = () => {
   const { myAuctions, fetchMyAuctions, deleteAuction, isLoading } = useAuctionStore();
+  const { subscribe } = useWebSocketStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   useEffect(() => {
     fetchMyAuctions();
-  }, []);
+  }, [fetchMyAuctions]);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    const handleWebSocketMessage = (data: WebSocketMessage) => {
+      if (data.type === 'auctionUpdate') {
+        // ✅ REAL-TIME: Update auction in my auctions list
+        fetchMyAuctions(); // Refresh the list to get updated data
+      } else if (data.type === 'auctionStarted') {
+        // ✅ REAL-TIME: Refresh when auction starts
+        fetchMyAuctions();
+        toast.success(`Auction started: ${data.auctionTitle}`);
+      } else if (data.type === 'auctionEnded') {
+        // ✅ REAL-TIME: Refresh when auction ends
+        fetchMyAuctions();
+        toast.success(`Auction ended: ${data.auctionTitle}`);
+      }
+    };
+
+    const unsubscribe = subscribe(handleWebSocketMessage);
+    return unsubscribe;
+  }, [subscribe, fetchMyAuctions]);
 
   const handleDeleteAuction = async (auctionId: string) => {
     if (window.confirm('Are you sure you want to delete this auction?')) {
@@ -70,6 +94,23 @@ const MyAuctions = () => {
     }
   };
 
+  // Calculate real-time status for an auction
+  const getRealTimeStatus = (auction: { startTime: string; endTime: string; status: string }) => {
+    const now = new Date();
+    const startTime = new Date(auction.startTime);
+    const endTime = new Date(auction.endTime);
+    
+    if (now < startTime) {
+      return 'pending';
+    } else if (now >= startTime && now < endTime) {
+      return 'active';
+    } else if (now >= endTime) {
+      return 'ended';
+    }
+    
+    return auction.status;
+  };
+
   // Safety check for undefined myAuctions
   if (!myAuctions) {
     return (
@@ -84,7 +125,7 @@ const MyAuctions = () => {
 
   const filteredAuctions = selectedStatus === 'all' 
     ? myAuctions 
-    : myAuctions.filter(auction => auction.status === selectedStatus);
+    : myAuctions.filter(auction => getRealTimeStatus(auction) === selectedStatus);
 
   if (isLoading) {
     return (
@@ -213,8 +254,8 @@ const MyAuctions = () => {
                   <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
                     {auction.title}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(auction.status)}`}>
-                    {auction.status.charAt(0).toUpperCase() + auction.status.slice(1)}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(getRealTimeStatus(auction))}`}>
+                    {getRealTimeStatus(auction).charAt(0).toUpperCase() + getRealTimeStatus(auction).slice(1)}
                   </span>
                 </div>
 
@@ -252,7 +293,7 @@ const MyAuctions = () => {
                     >
                       <Eye className="h-4 w-4" />
                     </Link>
-                    {auction.status === 'pending' && (
+                    {getRealTimeStatus(auction) === 'pending' && (
                       <Link
                         to={`/auctions/${auction.id}/edit`}
                         className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
@@ -261,7 +302,7 @@ const MyAuctions = () => {
                         <Edit className="h-4 w-4" />
                       </Link>
                     )}
-                    {auction.status === 'pending' && (
+                    {getRealTimeStatus(auction) === 'pending' && (
                       <button
                         onClick={() => handleDeleteAuction(auction.id)}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"

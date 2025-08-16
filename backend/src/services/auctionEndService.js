@@ -7,6 +7,7 @@ class AuctionEndService {
   constructor() {
     this.checkInterval = null;
     this.isRunning = false;
+    this.processedStatusChanges = new Set(); // Track processed status changes
   }
 
   start() {
@@ -19,6 +20,12 @@ class AuctionEndService {
     this.checkInterval = setInterval(async () => {
       await this.checkAndEndAuctions();
     }, 30000);
+    
+    // Cleanup processed status changes every 5 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.processedStatusChanges.clear();
+      console.log('Cleaned up processed status changes');
+    }, 5 * 60 * 1000); // 5 minutes
   }
 
   stop() {
@@ -26,6 +33,11 @@ class AuctionEndService {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
     }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.processedStatusChanges.clear();
     this.isRunning = false;
     console.log('Auction End Service stopped');
   }
@@ -90,6 +102,15 @@ class AuctionEndService {
       });
 
       for (const auction of pendingToActive) {
+        // Check if we've already processed this status change
+        const statusChangeKey = `${auction.id}-pending-to-active`;
+        if (this.processedStatusChanges.has(statusChangeKey)) {
+          continue; // Skip if already processed
+        }
+        
+        // Mark as processed
+        this.processedStatusChanges.add(statusChangeKey);
+        
         // ✅ REAL-TIME: Broadcast auction started (NO DATABASE UPDATE)
         broadcastToAll({
           type: 'auctionStarted',
@@ -114,6 +135,15 @@ class AuctionEndService {
       });
 
       for (const auction of activeToEnded) {
+        // Check if we've already processed this status change
+        const statusChangeKey = `${auction.id}-active-to-ended`;
+        if (this.processedStatusChanges.has(statusChangeKey)) {
+          continue; // Skip if already processed
+        }
+        
+        // Mark as processed
+        this.processedStatusChanges.add(statusChangeKey);
+        
         // ✅ REAL-TIME: Broadcast auction ended (NO DATABASE UPDATE)
         broadcastToAll({
           type: 'auctionEnded',

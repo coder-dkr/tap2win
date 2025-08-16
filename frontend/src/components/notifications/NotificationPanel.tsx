@@ -5,8 +5,17 @@ import { Bell, X, CheckCircle, AlertTriangle, DollarSign, Clock, Gavel, Users } 
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationPanel = () => {
-  const { notifications, clearNotifications } = useWebSocketStore();
+  const { notifications, clearNotifications, markAllNotificationsAsRead } = useWebSocketStore();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Mark all notifications as read when panel is opened
+  const handleOpenPanel = () => {
+    if (!isOpen) {
+      // Mark all notifications as read
+      markAllNotificationsAsRead();
+    }
+    setIsOpen(!isOpen);
+  };
 
   const getNotificationIcon = (notificationType: string) => {
     switch (notificationType) {
@@ -88,7 +97,7 @@ const NotificationPanel = () => {
     <div className="relative">
       {/* Notification Bell */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpenPanel}
         className="btn btn-ghost relative"
         aria-label="Notifications"
       >
@@ -107,14 +116,6 @@ const NotificationPanel = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
               <div className="flex items-center space-x-2">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={clearNotifications}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Mark all read
-                  </button>
-                )}
                 <button
                   onClick={() => setIsOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -150,7 +151,20 @@ const NotificationPanel = () => {
                             {notification.title}
                           </p>
                           <span className="text-xs text-gray-500">
-                            {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
+                            {notification.timestamp ? 
+                              (() => {
+                                try {
+                                  const date = new Date(notification.timestamp);
+                                  if (isNaN(date.getTime())) {
+                                    return 'Just now';
+                                  }
+                                  return formatDistanceToNow(date, { addSuffix: true });
+                                } catch {
+                                  return 'Just now';
+                                }
+                              })() :
+                              'Just now'
+                            }
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">

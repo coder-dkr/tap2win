@@ -2,7 +2,7 @@ const { Bid, Auction, User, Notification } = require('../models');
 const { asyncHandler } = require('../middleware/errorHandler');
 const redisService = require('../services/redisService');
 const emailService = require('../services/emailService');
-const { broadcastToAuction, broadcastToUser } = require('../socket/socketManager');
+const { broadcastToAuction, broadcastToUser, broadcastToAll } = require('../socket/socketManager');
 
 const placeBid = asyncHandler(async (req, res) => {
   const { auctionId } = req.params;
@@ -161,7 +161,8 @@ const placeBid = asyncHandler(async (req, res) => {
       notificationType: 'new_bid',
       title: 'New Bid Received',
       message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
-      auctionId: auction.id
+      auctionId: auction.id,
+      timestamp: new Date().toISOString()
     });
 
     // Notify previous highest bidder if exists
@@ -184,7 +185,8 @@ const placeBid = asyncHandler(async (req, res) => {
         notificationType: 'outbid',
         title: 'You\'ve been outbid',
         message: `Your bid on ${auction.title} has been outbid`,
-        auctionId: auction.id
+        auctionId: auction.id,
+        timestamp: new Date().toISOString()
       });
 
       // Send email notification

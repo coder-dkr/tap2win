@@ -306,8 +306,12 @@ const sendToClient = (clientId, data) => {
 
 const broadcastToRoom = (roomId, data, excludeClientId = null) => {
   const room = rooms.get(roomId);
-  if (!room) return;
+  if (!room) {
+    console.log(`Room ${roomId} not found for broadcast`);
+    return;
+  }
 
+  console.log(`Broadcasting to room ${roomId} with ${room.size} clients`);
   room.forEach(clientId => {
     if (clientId !== excludeClientId) {
       sendToClient(clientId, data);
@@ -317,6 +321,7 @@ const broadcastToRoom = (roomId, data, excludeClientId = null) => {
 
 const broadcastToUser = (userId, data) => {
   const userRoomId = `user:${userId}`;
+  console.log(`Broadcasting to user ${userId} in room ${userRoomId}:`, data.type);
   broadcastToRoom(userRoomId, data);
 };
 

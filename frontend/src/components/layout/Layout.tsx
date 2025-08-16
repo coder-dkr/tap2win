@@ -3,6 +3,8 @@ import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useWebSocketStore } from '../../stores/websocketStore';
+import { toast } from 'react-hot-toast';
+import type { WebSocketMessage } from '../../types';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -16,17 +18,53 @@ const Layout = () => {
   }, [checkAuth]);
 
   useEffect(() => {
-    // Connect to WebSocket when user is authenticated
-    if (user) {
-      connect();
-    } else {
-      disconnect();
-    }
+    // ✅ REAL-TIME: Connect to WebSocket immediately for ALL real-time updates
+    // This ensures every action in the app is real-time, regardless of authentication
+    connect();
 
     return () => {
       disconnect();
     };
-  }, [user, connect, disconnect]);
+  }, [connect, disconnect]);
+
+  // ✅ REAL-TIME: Global WebSocket message handler for ALL real-time updates
+  useEffect(() => {
+    const handleGlobalWebSocketMessage = (message: WebSocketMessage) => {
+      // Handle global real-time updates that should work across the entire app
+      switch (message.type) {
+        case 'newAuction':
+          // Show toast for new auctions (works for all users)
+          toast.success(`New auction: ${message.auction?.title || 'Auction'}`);
+          break;
+          
+        case 'auctionStarted':
+          // Show toast for auction starts
+          toast.success(`Auction started: ${message.auctionTitle || 'Auction'}`);
+          break;
+          
+        case 'auctionEnded':
+          // Show toast for auction ends
+          toast.success(`Auction ended: ${message.auctionTitle || 'Auction'}`);
+          break;
+          
+        case 'notification':
+          // Handle global notifications
+          if (message.notificationType === 'newUserRegistered' && user?.role === 'admin') {
+            toast.success('New user registered!');
+          }
+          break;
+          
+        default:
+          // Let other components handle their specific messages
+          break;
+      }
+    };
+
+    // Subscribe to global WebSocket messages
+    const unsubscribe = useWebSocketStore.getState().subscribe(handleGlobalWebSocketMessage);
+    
+    return unsubscribe;
+  }, [user?.role]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

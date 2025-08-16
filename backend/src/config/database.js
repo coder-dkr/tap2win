@@ -54,7 +54,7 @@ const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.p
       rejectUnauthorized: false
     }
   },
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  logging: process.env.NODE_ENV === 'development' ? false : false,
   pool: {
     max: 10,
     min: 0,

@@ -25,6 +25,7 @@ interface WebSocketActions {
   sendMessage: (message: WebSocketMessage) => void;
   addNotification: (notification: NotificationMessage) => void;
   clearNotifications: () => void;
+  markAllNotificationsAsRead: () => void;
   setAuctionState: (state: {
     highestBid?: Bid;
     bidCount: number;
@@ -159,6 +160,15 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
 
   clearNotifications: () => {
     set({ notifications: [] });
+  },
+
+  markAllNotificationsAsRead: () => {
+    set((state) => ({
+      notifications: state.notifications.map(notification => ({
+        ...notification,
+        isRead: true
+      }))
+    }));
   },
 
   setAuctionState: (state: {
