@@ -73,10 +73,15 @@ class EmailService {
 
       if (data.attachments) {
         msg.attachments = data.attachments;
+        console.log(`📎 REAL-TIME: Attachments added to email:`, {
+          count: data.attachments.length,
+          files: data.attachments.map(att => att.filename)
+        });
       }
 
       console.log(`✅ REAL-TIME: Attempting to send email to ${to} with subject: ${subject}`);
       console.log(`✅ REAL-TIME: Email content length: ${msg.html.length} characters`);
+      console.log(`📎 REAL-TIME: Has attachments: ${data.attachments ? 'Yes' : 'No'}`);
       
       const result = await sgMail.send(msg);
       console.log(`✅ REAL-TIME: Email sent successfully to ${to}`);
@@ -250,6 +255,16 @@ class EmailService {
   async sendInvoiceEmail(recipient, invoice, auction, isWinner = true) {
     const subject = `Invoice for ${auction.title}`;
     const template = isWinner ? 'invoice-buyer' : 'invoice-seller';
+
+    console.log(`📧 REAL-TIME: Preparing invoice email for ${recipient.email}`);
+    console.log(`📧 REAL-TIME: Invoice details:`, {
+      recipient: recipient.email,
+      template: template,
+      invoiceNumber: invoice.data.invoiceNumber,
+      filename: invoice.filename,
+      bufferSize: invoice.buffer.length,
+      isWinner: isWinner
+    });
 
     // ✅ REAL-TIME: Send email with PDF attachment
     await this.sendEmail(

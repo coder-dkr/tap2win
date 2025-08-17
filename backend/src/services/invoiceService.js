@@ -24,10 +24,26 @@ class InvoiceService {
   }
   async generateInvoice(auction, buyer, seller, finalAmount) {
     try {
+      // Convert finalAmount to number if it's a string
+      const numericAmount = parseFloat(finalAmount);
+      if (isNaN(numericAmount)) {
+        throw new Error(`Invalid finalAmount: ${finalAmount}`);
+      }
+      
+      console.log(`📄 Starting invoice generation for auction ${auction.id}`);
+      console.log(`📄 Invoice data:`, {
+        auctionTitle: auction.title,
+        buyerName: `${buyer.firstName} ${buyer.lastName}`,
+        sellerName: `${seller.firstName} ${seller.lastName}`,
+        finalAmount: finalAmount,
+        numericAmount: numericAmount
+      });
+
       const template = await this.loadInvoiceTemplate();
       if (!template) {
         throw new Error('Failed to load invoice template');
       }
+      console.log(`✅ Invoice template loaded successfully`);
       const invoiceNumber = this.generateInvoiceNumber();
       const invoiceDate = new Date().toISOString().split('T')[0];
       const invoiceData = {
@@ -50,10 +66,10 @@ class InvoiceService {
           username: seller.username
         },
         transaction: {
-          finalAmount: finalAmount.toFixed(2),
+          finalAmount: numericAmount.toFixed(2),
           currency: 'USD',
-          platformFee: (finalAmount * 0.05).toFixed(2), 
-          sellerAmount: (finalAmount * 0.95).toFixed(2)
+          platformFee: (numericAmount * 0.05).toFixed(2), 
+          sellerAmount: (numericAmount * 0.95).toFixed(2)
         },
         company: {
           name: 'Tap2Win',
@@ -63,12 +79,22 @@ class InvoiceService {
         }
       };
       const html = template(invoiceData);
+      console.log(`✅ HTML template rendered successfully (${html.length} characters)`);
+      
+      console.log(`📄 Launching Puppeteer browser...`);
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
+      console.log(`✅ Browser launched successfully`);
+      
       const page = await browser.newPage();
+      console.log(`✅ New page created`);
+      
       await page.setContent(html, { waitUntil: 'networkidle0' });
+      console.log(`✅ HTML content set on page`);
+      
+      console.log(`📄 Generating PDF...`);
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -79,7 +105,10 @@ class InvoiceService {
           left: '20mm'
         }
       });
+      console.log(`✅ PDF generated successfully (${pdfBuffer.length} bytes)`);
+      
       await browser.close();
+      console.log(`✅ Browser closed`);
       return {
         buffer: pdfBuffer,
         filename: `invoice-${invoiceNumber}.pdf`,
@@ -97,22 +126,49 @@ class InvoiceService {
   }
   async generateAndSendInvoices(auction, buyer, finalAmount) {
     try {
+      // Convert finalAmount to number if it's a string
+      const numericAmount = parseFloat(finalAmount);
+      if (isNaN(numericAmount)) {
+        throw new Error(`Invalid finalAmount: ${finalAmount}`);
+      }
+      
+      console.log(`📄 Starting invoice generation and sending for auction ${auction.id}`);
+      console.log(`📄 Buyer: ${buyer.firstName} ${buyer.lastName} (${buyer.email})`);
+      console.log(`📄 Amount: $${finalAmount} (numeric: $${numericAmount})`);
+      
       const seller = await auction.getSeller();
-      const invoice = await this.generateInvoice(auction, buyer, seller, finalAmount);
+      console.log(`📄 Seller: ${seller.firstName} ${seller.lastName} (${seller.email})`);
+      
+      const invoice = await this.generateInvoice(auction, buyer, seller, numericAmount);
+      console.log(`✅ Invoice generated successfully`);
+      
+      console.log(`📧 Sending invoice email to buyer...`);
       await emailService.sendInvoiceEmail(buyer, {
         buffer: invoice.buffer,
         filename: invoice.filename,
         data: invoice.data
       }, auction, true);
+      console.log(`✅ Invoice email sent to buyer`);
+      
+      console.log(`📧 Sending invoice email to seller...`);
       await emailService.sendInvoiceEmail(seller, {
         buffer: invoice.buffer,
         filename: invoice.filename,
         data: invoice.data
       }, auction, false);
+      console.log(`✅ Invoice email sent to seller`);
+      
       console.log(`✅ REAL-TIME: Invoices sent for auction ${auction.id} - Amount: $${finalAmount}`);
       return invoice;
     } catch (error) {
-      console.error('Error generating and sending invoices:', error);
+      console.error('❌ Error generating and sending invoices:', error);
+      console.error('❌ Error details:', {
+        auctionId: auction.id,
+        buyerEmail: buyer.email,
+        finalAmount: finalAmount,
+        error: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }

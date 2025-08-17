@@ -240,9 +240,18 @@ const handleAcceptBid = async (auction, highestBid, bidder) => {
 
   // Generate and send invoices
   try {
+    console.log(`📄 Generating invoices for auction ${auction.id} - Amount: $${highestBid.amount}`);
     await invoiceService.generateAndSendInvoices(auction, bidder, highestBid.amount);
+    console.log(`✅ Invoices generated and sent successfully for auction ${auction.id}`);
   } catch (error) {
-    console.error('Failed to generate invoices:', error);
+    console.error('❌ Failed to generate invoices:', error);
+    console.error('❌ Error details:', {
+      auctionId: auction.id,
+      buyerId: bidder.id,
+      amount: highestBid.amount,
+      error: error.message,
+      stack: error.stack
+    });
   }
 };
 
@@ -557,7 +566,20 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         );
         
         // Generate and send invoices
-        await invoiceService.generateAndSendInvoices(auction, auction.highestBid.bidder, auction.counterOfferAmount);
+        try {
+          console.log(`📄 Generating invoices for counter offer auction ${auction.id} - Amount: $${auction.counterOfferAmount}`);
+          await invoiceService.generateAndSendInvoices(auction, auction.highestBid.bidder, auction.counterOfferAmount);
+          console.log(`✅ Invoices generated and sent successfully for counter offer auction ${auction.id}`);
+        } catch (error) {
+          console.error('❌ Failed to generate invoices for counter offer:', error);
+          console.error('❌ Error details:', {
+            auctionId: auction.id,
+            buyerId: auction.highestBid.bidder.id,
+            amount: auction.counterOfferAmount,
+            error: error.message,
+            stack: error.stack
+          });
+        }
       } catch (error) {
         console.error('Failed to send emails or generate invoices:', error);
       }

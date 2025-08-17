@@ -4,6 +4,8 @@ const { generateToken } = require('../utils/jwt');
 const { asyncHandler } = require('../middleware/errorHandler');
 const emailService = require('../services/emailService');
 const { broadcastToAdmins, broadcastToAll } = require('../socket/socketManager');
+
+
 const register = asyncHandler(async (req, res) => {
   const { username, email, password, firstName, lastName, role } = req.body;
   const existingUser = await User.findOne({
