@@ -353,7 +353,7 @@ const RealTimeAuctionList: React.FC = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   <h2 className="text-xl font-bold text-gray-900">
-                    {filterStatus ? `${filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)} Auctions` : 'All Auctions'} ({filteredAndSortedAuctions.length})
+                    {filterStatus ? `${filterStatus?.charAt(0)?.toUpperCase() + filterStatus.slice(1)} Auctions` : 'All Auctions'} ({filteredAndSortedAuctions.length})
                   </h2>
                 </div>
                 <div className="space-y-4">

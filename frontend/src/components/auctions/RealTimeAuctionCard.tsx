@@ -203,6 +203,20 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
     }
   };
 
+  // Calculate real-time status (NO DATABASE UPDATE)
+  const now = new Date();
+  const startTime = new Date(auction.startTime);
+  const endTime = new Date(auction.endTime);
+  
+  let realTimeStatus = auction.status;
+  if (now < startTime) {
+    realTimeStatus = 'pending';
+  } else if (now >= startTime && now < endTime) {
+    realTimeStatus = 'active';
+  } else if (now >= endTime) {
+    realTimeStatus = 'ended';
+  }
+  
   const getStatusColor = () => {
     switch (realTimeStatus) {
       case 'active':
@@ -218,22 +232,10 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
     }
   };
   
-  // Calculate real-time status (NO DATABASE UPDATE)
-  const now = new Date();
-  const startTime = new Date(auction.startTime);
-  const endTime = new Date(auction.endTime);
-  
-  let realTimeStatus = auction.status;
-  if (now < startTime) {
-    realTimeStatus = 'pending';
-  } else if (now >= startTime && now < endTime) {
-    realTimeStatus = 'active';
-  } else if (now >= endTime) {
-    realTimeStatus = 'ended';
-  }
-  
   const isAuctionActive = realTimeStatus === 'active';
   const canBid = user && user.id !== auction.sellerId && isAuctionActive;
+
+  console.log('Auction Status:', auction.id, realTimeStatus, 'Current Time:', now.toISOString(), 'End Time:', endTime.toISOString());
 
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
@@ -246,7 +248,7 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
                 {auction.title}
               </h3>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
-                {realTimeStatus.toUpperCase()}
+                {realTimeStatus?.toUpperCase()}
               </span>
             </div>
             <p className="text-gray-600 text-sm line-clamp-2">

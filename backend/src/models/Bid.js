@@ -52,7 +52,7 @@ Bid.prototype.toPublic = function() {
     bidTime: this.bidTime,
     bidder: {
       id: this.bidderId,
-      username: this.Bidder ? this.Bidder.username : 'Anonymous'
+      username: this.bidder ? this.bidder.username : 'Anonymous'
     }
   };
 };

@@ -496,7 +496,7 @@ const getAuctionBids = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      bids,
+      bids: bids.map(bid => bid.toPublic ? bid.toPublic() : bid),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import type { Auction } from '../../types';
-import { Trophy, CheckCircle, XCircle, DollarSign, User, Calendar } from 'lucide-react';
+import { Trophy, CheckCircle, XCircle, DollarSign, User, Calendar, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface WinnerAnnouncementProps {
@@ -34,7 +34,8 @@ const WinnerAnnouncement = ({
   const isSeller = user?.id === auction.sellerId;
   const isWinner = winningBid?.bidder.id === user?.id;
   const isAuctionEnded = auction.status === 'ended';
-  const needsSellerDecision = isSeller && isAuctionEnded && auction.sellerDecision === 'pending';
+  const needsSellerDecision = isSeller && isAuctionEnded && (auction.sellerDecision === 'pending' || auction.sellerDecision === null);
+  const sellerDecisionPending = isWinner && isAuctionEnded && (auction.sellerDecision === 'pending' || auction.sellerDecision === null);
 
   const handleCounterOffer = () => {
     const amount = parseFloat(counterAmount);
@@ -193,6 +194,20 @@ const WinnerAnnouncement = ({
         )}
 
         {/* Winner Notification */}
+        {sellerDecisionPending && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+              <div>
+                <h4 className="font-semibold text-yellow-800">Seller Decision Pending</h4>
+                <p className="text-sm text-yellow-600">
+                  The seller is reviewing your winning bid of ${winningBid?.amount}. You'll be notified once they make a decision.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isWinner && auction.status === 'completed' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center">

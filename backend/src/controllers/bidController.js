@@ -225,7 +225,7 @@ const getAuctionBids = asyncHandler(async (req, res) => {
     where: { auctionId },
     include: [{
       model: User,
-      as: 'bidder',
+      as: 'buyer',
       attributes: ['id', 'username']
     }],
     order: [['amount', 'DESC'], ['createdAt', 'DESC']],

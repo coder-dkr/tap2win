@@ -223,32 +223,45 @@ const Register = () => {
                 I want to
               </label>
               <div className="grid grid-cols-2 gap-4">
-                <label className="relative cursor-pointer">
+                <label className="relative cursor-pointer group">
                   <input
                     {...register('role', { required: 'Please select a role' })}
                     type="radio"
                     value="buyer"
-                    className="sr-only"
+                    className="sr-only peer"
                   />
-                  <div className="border-2 border-gray-200 rounded-lg p-4 text-center hover:border-primary transition-colors peer-checked:border-primary peer-checked:bg-primary/5">
-                    <div className="font-medium text-gray-900">Buy Items</div>
-                    <div className="text-sm text-gray-500">Place bids on auctions</div>
+                  <div className={`border-2 rounded-lg p-4 text-center transition-all duration-200 cursor-pointer
+                    ${errors.role ? 'border-red-600' : 'border-gray-200'}
+                    hover:border-primary hover:bg-primary/5
+                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:shadow-md
+                    group-hover:scale-[1.02]`}>
+                    <div className="font-medium text-gray-900 peer-checked:text-primary">Buy Items</div>
+                    <div className="text-sm text-gray-500 peer-checked:text-primary/80">Place bids on auctions</div>
+                    <div className="mt-2 text-xs text-primary opacity-0 peer-checked:opacity-100 transition-opacity">
+                      ✓ Selected
+                    </div>
                   </div>
                 </label>
 
-                <label className="relative cursor-pointer">
+                <label className="relative cursor-pointer group">
                   <input
                     {...register('role', { required: 'Please select a role' })}
                     type="radio"
                     value="seller"
-                    className="sr-only"
+                    className="sr-only peer"
                   />
-                  <div className="border-2 border-gray-200 rounded-lg p-4 text-center hover:border-primary transition-colors peer-checked:border-primary peer-checked:bg-primary/5">
-                    <div className="font-medium text-gray-900">Sell Items</div>
-                    <div className="text-sm text-gray-500">Create and manage auctions</div>
+                  <div className={`border-2 rounded-lg p-4 text-center transition-all duration-200 cursor-pointer
+                    ${errors.role ? 'border-red-600' : 'border-gray-200'}
+                    hover:border-primary hover:bg-primary/5
+                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:shadow-md
+                    group-hover:scale-[1.02]`}>
+                    <div className="font-medium text-gray-900 peer-checked:text-primary">Sell Items</div>
+                    <div className="text-sm text-gray-500 peer-checked:text-primary/80">Create and manage auctions</div>
+                    <div className="mt-2 text-xs text-primary opacity-0 peer-checked:opacity-100 transition-opacity">
+                      ✓ Selected
+                    </div>
                   </div>
                 </label>
-                
               </div>
               {errors.role && (
                 <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

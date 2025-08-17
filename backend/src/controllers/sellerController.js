@@ -148,7 +148,7 @@ const handleAcceptBid = async (auction, highestBid, bidder) => {
 
   await Notification.create({
     userId: auction.sellerId,
-    type: 'auction_completed',
+    type: 'bid_accepted',
     title: 'Auction completed successfully',
     message: `You have accepted the bid of $${highestBid.amount} for "${auction.title}".`,
     data: {
@@ -230,7 +230,7 @@ const handleRejectBid = async (auction, highestBid, bidder) => {
 
   await Notification.create({
     userId: auction.sellerId,
-    type: 'auction_completed',
+    type: 'bid_rejected',
     title: 'Auction completed',
     message: `You have rejected the bid of $${highestBid.amount} for "${auction.title}".`,
     data: {
@@ -300,7 +300,7 @@ const handleCounterOffer = async (auction, highestBid, bidder, counterOfferAmoun
 
   await Notification.create({
     userId: auction.sellerId,
-    type: 'counter_offer_sent',
+    type: 'counter_offer',
     title: 'Counter offer sent',
     message: `You have sent a counter offer of $${counterOfferAmount} for "${auction.title}".`,
     data: {

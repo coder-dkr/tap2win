@@ -242,6 +242,7 @@ const Dashboard = () => {
             <h2 className="card-title">Quick Actions</h2>
           </div>
           <div className="card-content space-y-4">
+            {user?.role === 'seller' && <>
             <Link to="/auctions/create" className="btn btn-primary w-full">
               <Plus className="h-5 w-5 mr-2" />
               Create New Auction
@@ -253,7 +254,8 @@ const Dashboard = () => {
             <Link to="/my-auctions" className="btn btn-outline w-full">
               View My Auctions
             </Link>
-            <Link to="/my-bids" className="btn btn-outline w-full">
+            </>}
+            <Link to="/my-bids" className="btn btn-outline w-full py-10">
               View My Bids
             </Link>
           </div>

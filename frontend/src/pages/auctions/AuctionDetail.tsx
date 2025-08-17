@@ -7,6 +7,7 @@ import { useAuctionStore } from '../../stores/auctionStore';
 import { useWebSocketStore } from '../../stores/websocketStore';
 import { useAuthStore } from '../../stores/authStore';
 import type { PlaceBidForm } from '../../types';
+import { tokenService } from '../../utils/cookies';
 import { 
   ArrowLeft, 
   Clock, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import RealTimeStatus from '../../components/auctions/RealTimeStatus';
 import WinnerAnnouncement from '../../components/auctions/WinnerAnnouncement';
+import axios from 'axios';
 
 const AuctionDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,8 +85,21 @@ const AuctionDetail = () => {
       await fetchAuctionById(id!);
       // Fetch bid history for this auction
       if (id) {
-        const response = await fetch(`/api/bids/auction/${id}`);
-        const data = await response.json();
+
+        const token = tokenService.getToken();
+        if(!token) {
+          alert('Please login to view this auction');
+          navigate('/login');
+          return;
+        }
+        const {data} = await axios.get(`/api/auctions/${id}/bids`,
+          {
+            headers : {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
         if (data.success && data.data) {
           setBids(data.data.bids || []);
         }
@@ -164,9 +179,23 @@ const AuctionDetail = () => {
     );
   }
 
+  // Calculate real-time auction status
+  const now = new Date();
+  const startTime = new Date(currentAuction.startTime);
+  const endTime = new Date(currentAuction.endTime);
+  
+  let realTimeStatus = currentAuction.status;
+  if (now < startTime) {
+    realTimeStatus = 'pending';
+  } else if (now >= startTime && now < endTime) {
+    realTimeStatus = 'active';
+  } else if (now >= endTime) {
+    realTimeStatus = 'ended';
+  }
+  
   const isSeller = user?.id === currentAuction.sellerId;
-  const isAuctionEnded = currentAuction.status === 'ended';
-  const canBid = user && user.role === 'buyer' && currentAuction.status === 'active' && !isSeller;
+  const isAuctionEnded = realTimeStatus === 'ended';
+  const canBid = user && user.role === 'buyer' && realTimeStatus === 'active' && !isSeller;
   const isWinningBid = bids.some(bid => bid.bidderId === user?.id && bid.isWinning);
 
   return (
@@ -227,7 +256,11 @@ const AuctionDetail = () => {
           <RealTimeStatus auction={currentAuction} />
 
           {/* Winner Announcement */}
-          {currentAuction.status === 'ended' && (
+          {(currentAuction.status === 'ended' || (() => {
+            const now = new Date();
+            const endTime = new Date(currentAuction.endTime);
+            return now >= endTime;
+          })()) && (
             <WinnerAnnouncement 
               auction={currentAuction}
               winningBid={bids.find(bid => bid.isWinning) ? {
@@ -275,12 +308,13 @@ const AuctionDetail = () => {
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Status:</span>
                 <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-                  currentAuction.status === 'active' ? 'bg-green-100 text-green-800' :
-                  currentAuction.status === 'ended' ? 'bg-red-100 text-red-800' :
-                  currentAuction.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                  realTimeStatus === 'active' ? 'bg-green-100 text-green-800' :
+                  realTimeStatus === 'ended' ? 'bg-red-100 text-red-800' :
+                  realTimeStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
+                  realTimeStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {currentAuction.status.charAt(0).toUpperCase() + currentAuction.status.slice(1)}
+                  {realTimeStatus.charAt(0).toUpperCase() + realTimeStatus.slice(1)}
                 </span>
               </div>
             </div>
