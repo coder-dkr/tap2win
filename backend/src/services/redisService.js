@@ -130,5 +130,96 @@ class RedisService {
     const now = Date.now();
     await redisClient.zremrangebyscore('active_auctions', 0, now);
   }
+
+  // Utility function to update auction cache with full auction data
+  async updateAuctionCache(auctionId, auctionData) {
+    try {
+      await this.cacheAuction(auctionId, auctionData);
+      console.log(`✅ Updated Redis cache for auction ${auctionId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error updating Redis cache for auction ${auctionId}:`, error);
+      return false;
+    }
+  }
+
+  // Utility function to sync Redis with database - ensures consistency
+  async syncAuctionWithDatabase(auctionId, Auction, includeAssociations = true) {
+    try {
+      // Get fresh data from database
+      const includeOptions = includeAssociations ? [
+        {
+          model: require('../models/User'),
+          as: 'seller',
+          attributes: ['id', 'username', 'firstName', 'lastName']
+        },
+        {
+          model: require('../models/Bid'),
+          as: 'bids',
+          include: [{
+            model: require('../models/User'),
+            as: 'bidder',
+            attributes: ['id', 'username']
+          }],
+          order: [['amount', 'DESC']],
+          limit: 10
+        },
+        {
+          model: require('../models/CloudinaryFile'),
+          as: 'images',
+          attributes: ['id', 'url', 'filename', 'width', 'height']
+        }
+      ] : [];
+
+      const freshAuction = await Auction.findByPk(auctionId, { include: includeOptions });
+      
+      if (freshAuction) {
+        // Update Redis with fresh database data
+        await this.cacheAuction(auctionId, freshAuction);
+        console.log(`🔄 Synced Redis with database for auction ${auctionId}, sellerDecision: ${freshAuction.sellerDecision}`);
+        return freshAuction;
+      } else {
+        console.error(`❌ Auction ${auctionId} not found in database for sync`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error syncing Redis with database for auction ${auctionId}:`, error);
+      return null;
+    }
+  }
+
+  // Utility function to force refresh auction cache from database
+  async refreshAuctionCache(auctionId, Auction) {
+    try {
+      // Delete existing cache
+      await this.deleteCachedAuction(auctionId);
+      
+      // Get fresh data and cache it
+      const freshAuction = await this.syncAuctionWithDatabase(auctionId, Auction);
+      
+      if (freshAuction) {
+        console.log(`🔄 Refreshed Redis cache for auction ${auctionId} from database`);
+        return freshAuction;
+      } else {
+        console.error(`❌ Failed to refresh cache for auction ${auctionId}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error refreshing auction cache for ${auctionId}:`, error);
+      return null;
+    }
+  }
+
+  // Utility function to invalidate auction cache
+  async invalidateAuctionCache(auctionId) {
+    try {
+      await this.deleteCachedAuction(auctionId);
+      console.log(`🗑️ Invalidated Redis cache for auction ${auctionId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error invalidating Redis cache for auction ${auctionId}:`, error);
+      return false;
+    }
+  }
 }
 module.exports = new RedisService();

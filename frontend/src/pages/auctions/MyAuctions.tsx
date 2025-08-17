@@ -38,9 +38,20 @@ const MyAuctions = () => {
         fetchMyAuctions();
         toast.success(`Auction started: ${data.auctionTitle}`);
       } else if (data.type === 'auctionEnded') {
-        // ✅ REAL-TIME: Refresh when auction ends
+        // ✅ REAL-TIME: Refresh when auction ends and update seller decision
         fetchMyAuctions();
         toast.success(`Auction ended: ${data.auctionTitle}`);
+      } else if (data.type === 'newBid') {
+        // ✅ REAL-TIME: Update auction with new bid information
+        fetchMyAuctions();
+      } else if (data.type === 'sellerDecisionInterface') {
+        // ✅ REAL-TIME: Seller decision interface activated
+        fetchMyAuctions();
+        toast.success('Seller decision interface activated');
+      } else if (data.type === 'winnerAnnouncement') {
+        // ✅ REAL-TIME: Winner announced
+        fetchMyAuctions();
+        toast.success('Winner announced!');
       }
     };
 

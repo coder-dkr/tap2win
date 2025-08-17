@@ -23,8 +23,10 @@ const authRoutes = require('./routes/auth');
 const auctionRoutes = require('./routes/auctions');
 const bidRoutes = require('./routes/bids');
 const sellerRoutes = require('./routes/seller');
+const buyerRoutes = require('./routes/buyer');
 const adminRoutes = require('./routes/admin');
 const imageRoutes = require('./routes/images');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5100;
@@ -94,8 +96,10 @@ app.use('/api/auctions', auctionRoutes);
 // Protected routes with role-based access
 app.use('/api/bids', authenticateToken, bidRoutes);
 app.use('/api/seller', authenticateToken, authorize(['seller', 'admin']), sellerRoutes);
+app.use('/api/buyer', authenticateToken, buyerRoutes); // Accessible to all authenticated users
 app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/images', imageRoutes);
+app.use('/api/notifications', authenticateToken, notificationRoutes);
 
 // Serve static files from the React app
 if (process.env.NODE_ENV === 'production') {

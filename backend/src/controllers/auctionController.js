@@ -95,6 +95,11 @@ const createAuction = asyncHandler(async (req, res) => {
 
 
 const calculateAuctionStatus = (auction) => {
+  // If the auction has been explicitly marked as ended in the database, respect that
+  if (auction.status === 'ended' || auction.status === 'completed') {
+    return auction.status;
+  }
+  
   const now = new Date();
   const startTime = new Date(auction.startTime);
   const endTime = new Date(auction.endTime);
@@ -203,46 +208,45 @@ const getAuctions = asyncHandler(async (req, res) => {
 const getAuctionById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  
-  let auction = await redisService.getCachedAuction(id);
-
-  if (!auction) {
-    auction = await Auction.findByPk(id, {
-      include: [
-        {
+  // Always get fresh data from database for critical fields
+  const freshAuction = await Auction.findByPk(id, {
+    include: [
+      {
+        model: User,
+        as: 'seller',
+        attributes: ['id', 'username', 'firstName', 'lastName']
+      },
+      {
+        model: Bid,
+        as: 'bids',
+        include: [{
           model: User,
-          as: 'seller',
-          attributes: ['id', 'username', 'firstName', 'lastName']
-        },
-        {
-          model: Bid,
-          as: 'bids',
-          include: [{
-            model: User,
-            as: 'bidder',
-            attributes: ['id', 'username']
-          }],
-          order: [['amount', 'DESC']],
-          limit: 10
-        },
-        {
-          model: CloudinaryFile,
-          as: 'images',
-          attributes: ['id', 'url', 'filename', 'width', 'height']
-        }
-      ]
+          as: 'bidder',
+          attributes: ['id', 'username']
+        }],
+        order: [['amount', 'DESC']],
+        limit: 10
+      },
+      {
+        model: CloudinaryFile,
+        as: 'images',
+        attributes: ['id', 'url', 'filename', 'width', 'height']
+      }
+    ]
+  });
+
+  if (!freshAuction) {
+    return res.status(404).json({
+      success: false,
+      message: 'Auction not found'
     });
-
-    if (!auction) {
-      return res.status(404).json({
-        success: false,
-        message: 'Auction not found'
-      });
-    }
-
-    
-    await redisService.cacheAuction(id, auction);
   }
+
+  // Update Redis cache with fresh data
+  await redisService.cacheAuction(id, freshAuction);
+  
+  // Use fresh auction data
+  const auction = freshAuction;
 
 
   const calculatedStatus = calculateAuctionStatus(auction);
@@ -257,15 +261,21 @@ const getAuctionById = asyncHandler(async (req, res) => {
   
   auctionData.images = auctionData.images?.map(img => img.url) || [];
   
+  // Use fresh data from database (no need to preserve fields manually)
+  const responseData = {
+    ...auctionData,
+    status: calculatedStatus, 
+    bidCount,
+    currentHighestBid: highestBid
+  };
+
+  // Debug logging for seller decision
+  console.log(`🔍 getAuctionById ${id}: sellerDecision=${auction.sellerDecision}, status=${auction.status}, calculatedStatus=${calculatedStatus}`);
+  
   res.json({
     success: true,
     data: {
-      auction: {
-        ...auctionData,
-        status: calculatedStatus, 
-        bidCount,
-        currentHighestBid: highestBid
-      }
+      auction: responseData
     }
   });
 });
@@ -308,8 +318,41 @@ const updateAuction = asyncHandler(async (req, res) => {
 
   await auction.update(updates);
 
-  
-  await redisService.deleteCachedAuction(id);
+  // Update Redis cache with new auction data
+  try {
+    const updatedAuction = await Auction.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'username', 'firstName', 'lastName']
+        },
+        {
+          model: Bid,
+          as: 'bids',
+          include: [{
+            model: User,
+            as: 'bidder',
+            attributes: ['id', 'username']
+          }],
+          order: [['amount', 'DESC']],
+          limit: 10
+        },
+        {
+          model: CloudinaryFile,
+          as: 'images',
+          attributes: ['id', 'url', 'filename', 'width', 'height']
+        }
+      ]
+    });
+    
+    if (updatedAuction) {
+      await redisService.cacheAuction(id, updatedAuction);
+      console.log(`✅ Updated Redis cache for auction ${id} after update`);
+    }
+  } catch (error) {
+    console.error(`❌ Error updating Redis cache for auction ${id}:`, error);
+  }
 
   res.json({
     success: true,
@@ -493,10 +536,32 @@ const getAuctionBids = asyncHandler(async (req, res) => {
     offset: parseInt(offset)
   });
 
+  // Get the highest bid amount to determine winning bid
+  const highestBidAmount = bids.length > 0 ? bids[0].amount : 0;
+  
+  const serializedBids = bids.map(bid => {
+    const bidData = bid.toPublic ? bid.toPublic() : bid;
+    // Mark the highest bid as winning
+    bidData.isWinning = bid.amount === highestBidAmount;
+    
+    // Debug logging for winning bid
+    if (bidData.isWinning) {
+      console.log('🏆 Winning bid serialized:', {
+        id: bidData.id,
+        amount: bidData.amount,
+        bidderId: bidData.bidderId,
+        bidder: bidData.bidder,
+        isWinning: bidData.isWinning
+      });
+    }
+    
+    return bidData;
+  });
+
   res.json({
     success: true,
     data: {
-      bids: bids.map(bid => bid.toPublic ? bid.toPublic() : bid),
+      bids: serializedBids,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

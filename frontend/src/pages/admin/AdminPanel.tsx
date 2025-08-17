@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useWebSocketStore } from '../../stores/websocketStore';
 import * as adminService from '../../services/adminService';
-import type { Auction, AdminStats, User, SystemStatus, ActivityItem } from '../../types';
+import type { Auction, AdminStats, User, SystemStatus, ActivityItem, WebSocketMessage } from '../../types';
 import { 
   Users, 
   Gavel, 
@@ -76,6 +76,45 @@ const AdminPanel = () => {
 
   useEffect(() => {
     loadAdminData();
+  }, []);
+
+  // ✅ REAL-TIME: Listen for WebSocket updates
+  useEffect(() => {
+    const handleWebSocketMessage = (data: WebSocketMessage) => {
+      if (data.type === 'systemActivity') {
+        // ✅ REAL-TIME: Add to live activity feed
+        const systemMessage = data as unknown as { message: string; timestamp: string; activityType: string };
+        setLiveActivityFeed(prev => [{
+          id: `activity-${Date.now()}`,
+          message: systemMessage.message,
+          timestamp: systemMessage.timestamp,
+          type: systemMessage.activityType
+        }, ...prev.slice(0, 9)]);
+      } else if (data.type === 'newUserRegistered') {
+        // ✅ REAL-TIME: Refresh user stats
+        const userMessage = data as unknown as { username: string };
+        loadAdminData();
+        toast.success(`New user registered: ${userMessage.username}`);
+      } else if (data.type === 'auctionEnded') {
+        // ✅ REAL-TIME: Refresh auction stats
+        const auctionMessage = data as unknown as { auctionTitle: string };
+        loadAdminData();
+        toast.success(`Auction ended: ${auctionMessage.auctionTitle}`);
+      } else if (data.type === 'winnerAnnouncement') {
+        // ✅ REAL-TIME: Refresh stats
+        const winnerMessage = data as unknown as { winner: { username: string } };
+        loadAdminData();
+        toast.success(`Winner announced: ${winnerMessage.winner.username}`);
+      } else if (data.type === 'newAuction') {
+        // ✅ REAL-TIME: Refresh auction stats
+        const newAuctionMessage = data as unknown as { auction: { title: string } };
+        loadAdminData();
+        toast.success(`New auction created: ${newAuctionMessage.auction.title}`);
+      }
+    };
+
+    const unsubscribe = useWebSocketStore.getState().subscribe(handleWebSocketMessage);
+    return unsubscribe;
   }, []);
 
   // ✅ REAL-TIME: Listen for system activity and add to live activity feed

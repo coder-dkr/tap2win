@@ -7,6 +7,7 @@ import { useWebSocketStore } from '../../stores/websocketStore';
 import { api } from '../../lib/api';
 import { safeNumber, formatDollar } from '../../utils/numberUtils';
 import type { Auction, Bid, WebSocketMessage, RealTimeBidMessage, AuctionUpdateMessage } from '../../types';
+import { Link } from 'react-router-dom';
 
 interface RealTimeAuctionCardProps {
   auction: Auction;
@@ -24,6 +25,7 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
   onAuctionUpdate
 }) => {
   const { user } = useAuthStore();
+  const { joinAuction, leaveAuction } = useWebSocketStore();
 
   const [isBidding, setIsBidding] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>('');
@@ -46,8 +48,22 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date().getTime();
-      const startTime = new Date(auction.startTime).getTime();
-      const endTime = new Date(auction.endTime).getTime();
+      
+      // Safely parse dates
+      const parseDate = (dateString: string | undefined): number | null => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        return isNaN(date.getTime()) ? null : date.getTime();
+      };
+      
+      const startTime = parseDate(auction.startTime);
+      const endTime = parseDate(auction.endTime);
+      
+      // If dates are invalid, show error state
+      if (!startTime || !endTime) {
+        setTimeLeft('Invalid dates');
+        return;
+      }
       
       // Calculate status based on time (NO DATABASE UPDATE)
       if (now < startTime) {
@@ -56,7 +72,8 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        setTimeLeft(`Starts in ${days > 0 ? `${days}d ` : ''}${hours}h ${minutes}m`);
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+        setTimeLeft(`Starts in ${days > 0 ? `${days}d ` : ''}${hours}h ${minutes}m ${seconds}s`);
       } else if (now >= startTime && now < endTime) {
         // Auction is active
         const difference = endTime - now;
@@ -86,8 +103,11 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
     return () => clearInterval(timer);
   }, [auction.startTime, auction.endTime]);
 
-  // Fetch recent bids (initial load only - updates come via WebSocket)
+  // Join auction room and fetch recent bids
   useEffect(() => {
+    // Join the auction room for real-time updates
+    joinAuction(auction.id);
+    
     const fetchRecentBids = async () => {
       try {
         const response = await api.getAuctionBids(auction.id, { page: 1, limit: 3 });
@@ -100,49 +120,72 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
     };
 
     fetchRecentBids();
-  }, [auction.id]);
 
-  // Listen for real-time updates (ALL updates via WebSocket)
+    // Cleanup: leave auction room when component unmounts
+    return () => {
+      leaveAuction(auction.id);
+    };
+  }, [auction.id, joinAuction, leaveAuction]);
+
+  
   useEffect(() => {
     const handleAuctionUpdate = (data: WebSocketMessage) => {
+      console.log('🔄 RealTimeAuctionCard received WebSocket message:', data);
       if (data.auctionId === auction.id) {
         if (data.type === 'newBid') {
-          // ✅ REAL-TIME: Add new bid to the top of the list
+          console.log('💰 Processing newBid message for auction:', auction.id);
           const bidMessage = data as RealTimeBidMessage;
-          setRecentBids(prev => [bidMessage.bid, ...prev.slice(0, 2)]);
+          console.log('📊 Bid data:', bidMessage.bid);
+          setRecentBids(prev => {
+            const newBids = [bidMessage.bid, ...prev.slice(0, 2)];
+            console.log('🔄 Updated recent bids:', newBids);
+            return newBids;
+          });
           
-          // ✅ REAL-TIME: Update auction with new price and bid count
+        
           const updatedAuction = {
             ...auction,
             currentPrice: bidMessage.bid.amount,
             bidCount: (auction.bidCount || 0) + 1,
-            highestBidId: bidMessage.bid.id
+            highestBidId: bidMessage.bid.id,
+            startTime: auction.startTime,
+            endTime: auction.endTime
           };
           onAuctionUpdate(auction.id, updatedAuction);
           
-          // ✅ REAL-TIME: Trigger bid animation
+        
           setBidAnimation(true);
           setTimeout(() => setBidAnimation(false), 1000);
           
-          // ✅ REAL-TIME: Show toast notification for new bid
+        
           toast.success(`New bid: ${formatDollar(bidMessage.bid.amount)} by ${bidMessage.bid.bidder?.username || 'Anonymous'}`);
         } else if (data.type === 'auctionUpdate') {
-          // ✅ REAL-TIME: Update auction with any changes
+        
           const updateMessage = data as AuctionUpdateMessage;
-          onAuctionUpdate(auction.id, updateMessage.auction);
-        } else if (data.type === 'auctionStarted') {
-          // ✅ REAL-TIME: Update auction status to active
           const updatedAuction = {
             ...auction,
-            status: 'active' as const
+            ...updateMessage.auction,
+            startTime: auction.startTime,
+            endTime: auction.endTime
+          };
+          onAuctionUpdate(auction.id, updatedAuction);
+        } else if (data.type === 'auctionStarted') {
+        
+          const updatedAuction = {
+            ...auction,
+            status: 'active' as const,
+            startTime: auction.startTime,
+            endTime: auction.endTime
           };
           onAuctionUpdate(auction.id, updatedAuction);
           toast.success(`Auction started: ${auction.title}`);
         } else if (data.type === 'auctionEnded') {
-          // ✅ REAL-TIME: Update auction status to ended
+    
           const updatedAuction = {
             ...auction,
-            status: 'ended' as const
+            status: 'ended' as const,
+            startTime: auction.startTime,
+            endTime: auction.endTime
           };
           onAuctionUpdate(auction.id, updatedAuction);
           toast.success(`Auction ended: ${auction.title}`);
@@ -150,7 +193,7 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
       }
     };
 
-    // Subscribe to auction updates
+    
     const unsubscribe = useWebSocketStore.getState().subscribe(handleAuctionUpdate);
     return unsubscribe;
   }, [auction.id, onAuctionUpdate, auction.title]);
@@ -177,14 +220,16 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
       if (response.success) {
         // ✅ REAL-TIME: Update local state immediately
         const newBid = response.data!.bid;
-        setRecentBids(prev => [newBid, ...prev.slice(0, 2)]);
         
         // Update auction with new price
         const updatedAuction = {
           ...auction,
           currentPrice: data.amount,
-          bidCount: (auction.bidCount || 0) + 1
+          bidCount: (auction.bidCount || 0) + 1,
+          startTime: auction.startTime,
+          endTime: auction.endTime
         };
+        console.log('Updated Auction:', updatedAuction);
         onAuctionUpdate(auction.id, updatedAuction);
         
         toast.success(`Bid placed successfully! ${formatDollar(data.amount)}`);
@@ -205,16 +250,26 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
 
   // Calculate real-time status (NO DATABASE UPDATE)
   const now = new Date();
-  const startTime = new Date(auction.startTime);
-  const endTime = new Date(auction.endTime);
+  
+  // Safely parse dates with validation
+  const parseDate = (dateString: string | undefined): Date | null => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? null : date;
+  };
+  
+  const startTime = parseDate(auction.startTime);
+  const endTime = parseDate(auction.endTime);
   
   let realTimeStatus = auction.status;
-  if (now < startTime) {
-    realTimeStatus = 'pending';
-  } else if (now >= startTime && now < endTime) {
-    realTimeStatus = 'active';
-  } else if (now >= endTime) {
-    realTimeStatus = 'ended';
+  if (startTime && endTime) {
+    if (now < startTime) {
+      realTimeStatus = 'pending';
+    } else if (now >= startTime && now < endTime) {
+      realTimeStatus = 'active';
+    } else if (now >= endTime) {
+      realTimeStatus = 'ended';
+    }
   }
   
   const getStatusColor = () => {
@@ -235,7 +290,8 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
   const isAuctionActive = realTimeStatus === 'active';
   const canBid = user && user.id !== auction.sellerId && isAuctionActive;
 
-  console.log('Auction Status:', auction.id, realTimeStatus, 'Current Time:', now.toISOString(), 'End Time:', endTime.toISOString());
+  // Safe logging without causing date errors
+  console.log('Auction Status:', auction.id, realTimeStatus, 'Current Time:', now.toISOString(), 'End Time:', endTime?.toISOString() || 'Invalid');
 
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
@@ -250,6 +306,9 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
                 {realTimeStatus?.toUpperCase()}
               </span>
+              <Link to={`/auctions/${auction.id}`} className={`px-2 py-1 rounded-full text-xs font-medium text-blue-600`}>
+                Go to Auction
+              </Link>
             </div>
             <p className="text-gray-600 text-sm line-clamp-2">
               {auction.description}
@@ -452,7 +511,7 @@ const RealTimeAuctionCard: React.FC<RealTimeAuctionCardProps> = ({
               <div className="flex justify-between">
                 <span>Started:</span>
                 <span className="font-medium">
-                  {new Date(auction.startTime).toLocaleDateString()}
+                  {auction.startTime ? new Date(auction.startTime).toLocaleDateString() : 'Invalid date'}
                 </span>
               </div>
             </div>

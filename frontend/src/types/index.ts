@@ -191,7 +191,7 @@ export interface RegisterForm {
   confirmPassword?: string; // Optional - only used for frontend validation
   firstName: string;
   lastName: string;
-  role: 'buyer' | 'seller';
+  role: 'buyer' | 'seller' | 'admin';
 }
 
 export interface CreateAuctionForm {

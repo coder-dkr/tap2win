@@ -72,7 +72,7 @@ class ApiClient {
     password: string;
     firstName: string;
     lastName: string;
-    role: 'buyer' | 'seller';
+    role: 'buyer' | 'seller' | 'admin';
   }): Promise<ApiResponse<{ user: User; token: string }>> {
     return this.request({
       method: 'POST',
@@ -92,7 +92,7 @@ class ApiClient {
     firstName?: string;
     lastName?: string;
     avatar?: string;
-    role?: 'buyer' | 'seller';
+    role?: 'buyer' | 'seller' | 'admin';
   }): Promise<ApiResponse<{ user: User }>> {
     return this.request({
       method: 'PUT',
@@ -243,7 +243,7 @@ class ApiClient {
   }): Promise<ApiResponse<{ auction: Auction }>> {
     return this.request({
       method: 'POST',
-      url: `/auctions/${auctionId}/decision`,
+      url: `/seller/auctions/${auctionId}/decision`,
       data: decision,
     });
   }
@@ -253,7 +253,7 @@ class ApiClient {
   }): Promise<ApiResponse<{ auction: Auction }>> {
     return this.request({
       method: 'POST',
-      url: `/auctions/${auctionId}/counter-offer-response`,
+      url: `/buyer/auctions/${auctionId}/counter-offer-response`,
       data: response,
     });
   }

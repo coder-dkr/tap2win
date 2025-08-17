@@ -37,36 +37,6 @@ class AuctionEndService {
     try {
       console.log('🔄 Auction End Service: Checking for status updates...');
       await this.updateAuctionStatuses();
-      const now = new Date();
-      const endedAuctions = await Auction.findAll({
-        where: {
-          status: 'active',
-          endTime: {
-            [require('sequelize').Op.lte]: now
-          }
-        },
-        include: [
-          {
-            model: Bid,
-            as: 'bids',
-            order: [['amount', 'DESC']],
-            limit: 1,
-            include: [{
-              model: User,
-              as: 'bidder',
-              attributes: ['id', 'username', 'email']
-            }]
-          },
-          {
-            model: User,
-            as: 'seller',
-            attributes: ['id', 'username', 'email']
-          }
-        ]
-      });
-      for (const auction of endedAuctions) {
-        await this.endAuction(auction);
-      }
     } catch (error) {
       console.error('Error checking auctions to end:', error);
     }
@@ -151,36 +121,89 @@ class AuctionEndService {
           updateData.sellerDecision = 'pending';
           updateData.currentPrice = auction.bids[0].amount;
           updateData.highestBidId = auction.bids[0].id;
+          updateData.winnerId = auction.bids[0].bidderId;
           console.log(`✅ Setting seller decision to pending for auction ${auction.id} with ${auction.bids.length} bids`);
           console.log(`💰 Highest bid amount: ${auction.bids[0].amount}`);
+          console.log(`🏆 Winner ID: ${auction.bids[0].bidderId}`);
         } else {
           console.log(`ℹ️ No bids found for auction ${auction.id}, not setting seller decision`);
         }
         console.log(`💾 Updating auction ${auction.id} with data:`, updateData);
         await auction.update(updateData);
         console.log(`✅ Successfully updated auction ${auction.id} in database`);
+        
+        // Update Redis cache with new auction data
+        try {
+          const updatedAuction = await Auction.findByPk(auction.id, {
+            include: [
+              {
+                model: require('../models/User'),
+                as: 'seller',
+                attributes: ['id', 'username', 'firstName', 'lastName']
+              },
+              {
+                model: require('../models/Bid'),
+                as: 'bids',
+                include: [{
+                  model: require('../models/User'),
+                  as: 'bidder',
+                  attributes: ['id', 'username']
+                }],
+                order: [['amount', 'DESC']],
+                limit: 10
+              },
+              {
+                model: require('../models/CloudinaryFile'),
+                as: 'images',
+                attributes: ['id', 'url', 'filename', 'width', 'height']
+              }
+            ]
+          });
+          
+          if (updatedAuction) {
+            await redisService.syncAuctionWithDatabase(auction.id, Auction);
+            console.log(`✅ Synced Redis with database for auction ${auction.id} with sellerDecision: ${updatedAuction.sellerDecision}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error updating Redis cache for auction ${auction.id}:`, error);
+        }
+        
+        console.log(`📡 Broadcasting auction ended to all users`);
         broadcastToAll({
           type: 'auctionEnded',
           auctionId: auction.id,
           auctionTitle: auction.title,
           status: 'ended',
           startTime: auction.startTime,
-          endTime: auction.endTime
+          endTime: auction.endTime,
+          hasWinner: auction.bids && auction.bids.length > 0,
+          sellerDecision: auction.bids && auction.bids.length > 0 ? 'pending' : null
         });
+        
         console.log(`✅ Auction ${auction.id} ended and updated in database: ${auction.title}`);
+        
         if (auction.bids && auction.bids.length > 0) {
+          console.log(`🏆 Processing winner announcement for auction ${auction.id}`);
           await this.endAuction(auction);
+        } else {
+          console.log(`ℹ️ No bids for auction ${auction.id}, skipping endAuction processing`);
         }
       }
     } catch (error) {
       console.error('Error checking auction statuses:', error);
     }
   }
+
+
+
+
   async endAuction(auction) {
     try {
-      console.log(`Processing end auction notifications: ${auction.id} - ${auction.title}`);
+      console.log(`🏆 Processing end auction notifications: ${auction.id} - ${auction.title}`);
       const winningBid = auction.bids.length > 0 ? auction.bids[0] : null;
       const winner = winningBid ? winningBid.bidder : null;
+      
+      console.log(`📡 Broadcasting auction ended to auction room ${auction.id}`);
       broadcastToAuction(auction.id, {
         type: 'auctionEnded',
         auctionId: auction.id,
@@ -193,7 +216,8 @@ class AuctionEndService {
         } : null,
         hasWinner: !!winningBid,
         winningAmount: winningBid ? winningBid.amount : null,
-        endTime: auction.endTime
+        endTime: auction.endTime,
+        sellerDecision: 'pending'
       });
       broadcastToAll({
         type: 'systemActivity',
@@ -206,7 +230,7 @@ class AuctionEndService {
           winningAmount: winningBid ? winningBid.amount : null
         }
       });
-      broadcastToAdmins({
+            broadcastToAdmins({
         type: 'notification',
         notificationType: 'auctionEnded',
         title: 'Auction Ended',
@@ -224,25 +248,37 @@ class AuctionEndService {
       console.error(`Error ending auction ${auction.id}:`, error);
     }
   }
+
+
   async createAuctionEndNotifications(auction, winningBid, winner) {
     try {
       await Notification.create({
         userId: auction.seller.id,
         type: 'auction_ended',
         title: 'Auction Ended',
-        message: `Your auction "${auction.title}" has ended. ${winningBid ? `Highest bid: $${winningBid.amount}` : 'No bids received'}`,
+        message: `Your auction "${auction.title}" has ended. ${winningBid ? `Winner: ${winner.username} with bid of $${winningBid.amount}. Please make your decision.` : 'No bids received'}`,
         data: {
           auctionId: auction.id,
           winningBidAmount: winningBid ? winningBid.amount : null,
-          winnerId: winner ? winner.id : null
+          winnerId: winner ? winner.id : null,
+          sellerDecision: winningBid ? 'pending' : null
         }
       });
+      console.log(`📡 Broadcasting auction ended notification to seller ${auction.seller.id}`);
       broadcastToUser(auction.seller.id, {
         type: 'notification',
         notificationType: 'auction_ended',
         title: 'Auction Ended',
-        message: `Your auction "${auction.title}" has ended`,
-        auctionId: auction.id
+        message: `Your auction "${auction.title}" has ended. ${winningBid ? `Winner: ${winner.username} with bid of $${winningBid.amount}. Please make your decision.` : 'No bids received'}`,
+        auctionId: auction.id,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        sellerDecision: winningBid ? 'pending' : null,
+        winner: winningBid ? {
+          id: winner.id,
+          username: winner.username,
+          bidAmount: winningBid.amount
+        } : null
       });
       if (winner) {
         await Notification.create({
@@ -255,6 +291,7 @@ class AuctionEndService {
             bidAmount: winningBid.amount
           }
         });
+        console.log(`🏆 Broadcasting winner announcement to winner ${winner.id}`);
         broadcastToUser(winner.id, {
           type: 'notification',
           notificationType: 'auctionWon',
@@ -264,6 +301,8 @@ class AuctionEndService {
           auctionId: auction.id,
           isRead: false
         });
+        
+        console.log(`📢 Broadcasting winner announcement to all users`);
         broadcastToAll({
           type: 'winnerAnnouncement',
           auctionId: auction.id,
@@ -273,6 +312,20 @@ class AuctionEndService {
             username: winner.username
           },
           winningAmount: winningBid.amount,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`🤝 Broadcasting seller decision interface activation`);
+        broadcastToUser(auction.seller.id, {
+          type: 'sellerDecisionInterface',
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          winner: {
+            id: winner.id,
+            username: winner.username
+          },
+          winningAmount: winningBid.amount,
+          sellerDecision: 'pending',
           timestamp: new Date().toISOString()
         });
         broadcastToAll({

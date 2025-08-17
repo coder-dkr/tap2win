@@ -47,6 +47,7 @@ Bid.prototype.toPublic = function() {
     id: this.id,
     amount: this.amount,
     bidTime: this.bidTime,
+    bidderId: this.bidderId, // Include bidderId for consistency
     bidder: {
       id: this.bidderId,
       username: this.bidder ? this.bidder.username : 'Anonymous'

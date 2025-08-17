@@ -44,7 +44,12 @@ const Auction = sequelize.define('Auction', {
     allowNull: false,
     validate: {
       isDate: true,
-      isAfter: new Date().toISOString()
+      isAfterNow(value) {
+        const now = new Date();
+        if (value <= now) {
+          throw new Error('Start time must be in the future');
+        }
+      }
     }
   },
   endTime: {
@@ -74,6 +79,14 @@ const Auction = sequelize.define('Auction', {
   sellerDecision: {
     type: DataTypes.ENUM('pending', 'accepted', 'rejected', 'counter_offered'),
     allowNull: true
+  },
+  winnerId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
   },
   counterOfferAmount: {
     type: DataTypes.DECIMAL(10, 2),

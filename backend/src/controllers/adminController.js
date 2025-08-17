@@ -242,6 +242,43 @@ const updateAuction = async (req, res) => {
     if (bidIncrement) updateData.bidIncrement = bidIncrement;
     if (endTime) updateData.endTime = endTime;
     await auction.update(updateData);
+    
+    // Update Redis cache with new auction data
+    try {
+      const updatedAuction = await Auction.findByPk(id, {
+        include: [
+          {
+            model: require('../models/User'),
+            as: 'seller',
+            attributes: ['id', 'username', 'firstName', 'lastName']
+          },
+          {
+            model: require('../models/Bid'),
+            as: 'bids',
+            include: [{
+              model: require('../models/User'),
+              as: 'bidder',
+              attributes: ['id', 'username']
+            }],
+            order: [['amount', 'DESC']],
+            limit: 10
+          },
+          {
+            model: require('../models/CloudinaryFile'),
+            as: 'images',
+            attributes: ['id', 'url', 'filename', 'width', 'height']
+          }
+        ]
+      });
+      
+      if (updatedAuction) {
+        await redisService.cacheAuction(id, updatedAuction);
+        console.log(`✅ Updated Redis cache for auction ${id} after admin update`);
+      }
+    } catch (error) {
+      console.error(`❌ Error updating Redis cache for auction ${id}:`, error);
+    }
+    
     res.json({
       success: true,
       message: "Auction updated successfully",

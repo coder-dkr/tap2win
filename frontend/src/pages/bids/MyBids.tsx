@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuctionStore } from '../../stores/auctionStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useWebSocketStore } from '../../stores/websocketStore';
+import type { WebSocketMessage } from '../../types';
 import { 
   Eye, 
   DollarSign, 
@@ -18,6 +20,7 @@ import {
 const MyBids = () => {
   const { user } = useAuthStore();
   const { myBids, fetchMyBids, isLoading } = useAuctionStore();
+  const { subscribe } = useWebSocketStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   useEffect(() => {
@@ -26,6 +29,34 @@ const MyBids = () => {
       toast.success(`Welcome back, ${user.firstName || user.username}!`);
     }
   }, [user]);
+
+  // Listen for real-time updates
+  useEffect(() => {
+    const handleWebSocketMessage = (data: WebSocketMessage) => {
+      if (data.type === 'newBid') {
+        // ✅ REAL-TIME: Refresh bids when new bid is placed
+        fetchMyBids();
+      } else if (data.type === 'auctionUpdate') {
+        // ✅ REAL-TIME: Refresh when auction is updated
+        fetchMyBids();
+      } else if (data.type === 'auctionEnded') {
+        // ✅ REAL-TIME: Refresh when auction ends
+        fetchMyBids();
+        toast.success(`Auction ended: ${data.auctionTitle}`);
+      } else if (data.type === 'winnerAnnouncement') {
+        // ✅ REAL-TIME: Refresh when winner is announced
+        fetchMyBids();
+        toast.success('Winner announced!');
+      } else if (data.type === 'auctionCompleted') {
+        // ✅ REAL-TIME: Refresh when auction is completed
+        fetchMyBids();
+        toast.success('Auction completed!');
+      }
+    };
+
+    const unsubscribe = subscribe(handleWebSocketMessage);
+    return unsubscribe;
+  }, [subscribe, fetchMyBids]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

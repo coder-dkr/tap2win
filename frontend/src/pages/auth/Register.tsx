@@ -262,6 +262,26 @@ const Register = () => {
                     </div>
                   </div>
                 </label>
+
+                <label className="relative cursor-pointer group">
+                  <input
+                    {...register('role', { required: 'Please select a role' })}
+                    type="radio"
+                    value="admin"
+                    className="sr-only peer"
+                  />
+                  <div className={`border-2 rounded-lg p-4 text-center transition-all duration-200 cursor-pointer
+                    ${errors.role ? 'border-red-600' : 'border-gray-200'}
+                    hover:border-primary hover:bg-primary/5
+                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:shadow-md
+                    group-hover:scale-[1.02]`}>
+                    <div className="font-medium text-gray-900 peer-checked:text-primary">Become Admin</div>
+                    <div className="text-sm text-gray-500 peer-checked:text-primary/80">Moderate All</div>
+                    <div className="mt-2 text-xs text-primary opacity-0 peer-checked:opacity-100 transition-opacity">
+                      ✓ Selected
+                    </div>
+                  </div>
+                </label>
               </div>
               {errors.role && (
                 <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

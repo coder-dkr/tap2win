@@ -6,15 +6,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuctionStore } from '../../stores/auctionStore';
 import { useWebSocketStore } from '../../stores/websocketStore';
 import { useAuthStore } from '../../stores/authStore';
-import type { PlaceBidForm } from '../../types';
+import type { PlaceBidForm, WebSocketMessage } from '../../types';
 import { tokenService } from '../../utils/cookies';
 import { 
   ArrowLeft, 
   Clock, 
   DollarSign, 
   CheckCircle,
-  XCircle,
-  MessageSquare,
   Image as ImageIcon,
   User,
 } from 'lucide-react';
@@ -26,7 +24,7 @@ const AuctionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { fetchAuctionById, placeBid, makeSellerDecision, currentAuction, isLoading } = useAuctionStore();
+  const { fetchAuctionById, placeBid, makeSellerDecision, respondToCounterOffer, currentAuction, isLoading, setCurrentAuction } = useAuctionStore();
   const { joinAuction, leaveAuction, isConnected } = useWebSocketStore();
   
   const [bids, setBids] = useState<Array<{ id: string; bidderId: string; amount: number; isWinning: boolean; bidTime: string; bidder?: { username: string } }>>([]);
@@ -53,6 +51,140 @@ const AuctionDetail = () => {
       }
     };
   }, [id]);
+
+  // Subscribe to WebSocket updates for real-time auction changes
+  useEffect(() => {
+    const handleWebSocketMessage = (message: WebSocketMessage) => {
+      if (message.auctionId === id) {
+        if (message.type === 'auctionEnded') {
+          console.log('🔄 WebSocket: Auction ended, updating auction data');
+          // Update the current auction with ended status and seller decision
+          if (currentAuction) {
+            const auctionEndedMessage = message as { sellerDecision?: string; winner?: { id: string } };
+            const updatedAuction = {
+              ...currentAuction,
+              status: 'ended' as const,
+              sellerDecision: (auctionEndedMessage.sellerDecision as 'pending' | 'accepted' | 'rejected' | 'counter_offered') || 'pending',
+              winnerId: auctionEndedMessage.winner?.id || undefined
+            };
+            setCurrentAuction(updatedAuction);
+            console.log('✅ Updated auction with seller decision:', updatedAuction.sellerDecision);
+            
+            // Show toast notifications based on user role
+            if (user?.id === currentAuction.sellerId) {
+              toast.success('🎉 Auction ended! Please make your decision about the winning bid.', {
+                duration: 5000,
+                icon: '🤝'
+              });
+            } else if (user?.id === auctionEndedMessage.winner?.id) {
+              toast.success('🏆 Congratulations! You won the auction! Please wait for the seller\'s decision.', {
+                duration: 5000,
+                icon: '🎉'
+              });
+            }
+          }
+          // Reload auction to get fresh data from server
+          loadAuction();
+        } else if (message.type === 'sellerDecisionInterface') {
+          console.log('🤝 WebSocket: Seller decision interface activated');
+          // Update auction with seller decision pending
+          if (currentAuction) {
+            const decisionMessage = message as { 
+              sellerDecision?: string; 
+              winnerId?: string;
+            };
+            const updatedAuction = {
+              ...currentAuction,
+              sellerDecision: decisionMessage.sellerDecision as 'pending',
+              winnerId: decisionMessage.winnerId
+            };
+            setCurrentAuction(updatedAuction);
+            console.log('✅ Updated auction with seller decision interface:', updatedAuction.sellerDecision);
+          }
+          // Reload auction to get updated winner information
+          loadAuction();
+        } else if (message.type === 'winnerAnnouncement') {
+          console.log('🏆 WebSocket: Winner announcement received');
+          // Reload auction to get updated winner information
+          loadAuction();
+        } else if (message.type === 'counterOfferSent') {
+          console.log('💬 WebSocket: Counter offer sent');
+          // Show toast for counter offer
+          const winningBidData = bids.find(bid => bid.isWinning);
+          if (user?.id === winningBidData?.bidderId) {
+            toast.success('💬 You received a counter offer! Check the auction details.', {
+              duration: 6000,
+              icon: '💬'
+            });
+          }
+          loadAuction();
+        } else if (message.type === 'counterOfferResponse') {
+          console.log('💬 WebSocket: Counter offer response received');
+          loadAuction();
+        } else if (message.type === 'auctionCompleted') {
+          console.log('✅ WebSocket: Auction completed', message);
+          // Update auction state with completion data
+          if (currentAuction) {
+            const completedMessage = message as { 
+              sellerDecision?: string; 
+              status?: string;
+              decision?: string;
+              finalPrice?: number;
+              winner?: { id: string; username: string }
+            };
+            const updatedAuction = {
+              ...currentAuction,
+              status: completedMessage.status as 'completed',
+              sellerDecision: completedMessage.sellerDecision as 'accepted' | 'rejected',
+              finalPrice: completedMessage.finalPrice
+            };
+            setCurrentAuction(updatedAuction);
+            console.log('✅ Updated auction with completion:', updatedAuction.sellerDecision);
+            console.log('🔍 Current auction state after WebSocket update:', {
+              sellerDecision: updatedAuction.sellerDecision,
+              status: updatedAuction.status,
+              winnerId: updatedAuction.winnerId
+            });
+            
+            // Show toast notification based on decision
+            if (completedMessage.sellerDecision === 'accepted') {
+              if (user?.id === completedMessage.winner?.id) {
+                toast.success('🎉 Congratulations! Your bid was accepted!', {
+                  duration: 6000,
+                  icon: '🎉'
+                });
+              } else if (user?.id === currentAuction.sellerId) {
+                toast.success('✅ Auction completed successfully!', {
+                  duration: 6000,
+                  icon: '✅'
+                });
+              }
+            } else if (completedMessage.sellerDecision === 'rejected') {
+              if (user?.id === completedMessage.winner?.id) {
+                toast.error('❌ Your bid was not accepted by the seller', {
+                  duration: 6000,
+                  icon: '❌'
+                });
+              } else if (user?.id === currentAuction.sellerId) {
+                toast.success('✅ Auction completed - bid rejected', {
+                  duration: 6000,
+                  icon: '✅'
+                });
+              }
+            }
+          }
+          
+          // Reload auction data to ensure consistency
+          setTimeout(() => {
+            loadAuction();
+          }, 100);
+        }
+      }
+    };
+
+    const unsubscribe = useWebSocketStore.getState().subscribe(handleWebSocketMessage);
+    return unsubscribe;
+  }, [id, currentAuction, user]);
 
   useEffect(() => {
     if (currentAuction) {
@@ -83,6 +215,14 @@ const AuctionDetail = () => {
   const loadAuction = async () => {
     try {
       await fetchAuctionById(id!);
+      // The auction data will be available in the store after fetchAuctionById
+      const currentAuctionData = useAuctionStore.getState().currentAuction;
+      console.log('🔍 loadAuction - Current auction data:', {
+        sellerDecision: currentAuctionData?.sellerDecision,
+        status: currentAuctionData?.status,
+        winnerId: currentAuctionData?.winnerId
+      });
+      
       // Fetch bid history for this auction
       if (id) {
 
@@ -101,6 +241,7 @@ const AuctionDetail = () => {
         );
 
         if (data.success && data.data) {
+          console.log('📊 Bids data:', data.data.bids);
           setBids(data.data.bids || []);
         }
       }
@@ -144,6 +285,20 @@ const AuctionDetail = () => {
       }
     } catch {
       toast.error('Error submitting decision');
+    }
+  };
+
+  const handleCounterOfferResponse = async (response: 'accept' | 'reject') => {
+    try {
+      const success = await respondToCounterOffer(id!, { response });
+      if (success) {
+        toast.success(`Counter offer ${response}ed successfully`);
+        loadAuction();
+      } else {
+        toast.error(`Failed to ${response} counter offer`);
+      }
+    } catch {
+      toast.error('Error responding to counter offer');
     }
   };
 
@@ -194,9 +349,12 @@ const AuctionDetail = () => {
   }
   
   const isSeller = user?.id === currentAuction.sellerId;
+
   const isAuctionEnded = realTimeStatus === 'ended';
   const canBid = user && user.role === 'buyer' && realTimeStatus === 'active' && !isSeller;
   const isWinningBid = bids.some(bid => bid.bidderId === user?.id && bid.isWinning);
+
+  console.log(isSeller,isAuctionEnded,currentAuction.sellerDecision);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -261,21 +419,29 @@ const AuctionDetail = () => {
             const endTime = new Date(currentAuction.endTime);
             return now >= endTime;
           })()) && (
+            <>
             <WinnerAnnouncement 
               auction={currentAuction}
-              winningBid={bids.find(bid => bid.isWinning) ? {
-                id: bids.find(bid => bid.isWinning)!.id,
-                amount: bids.find(bid => bid.isWinning)!.amount,
+              winningBid={currentAuction.winnerId ? {
+                id: currentAuction.highestBidId || 'unknown',
+                amount: currentAuction.currentPrice || currentAuction.startingPrice,
                 bidder: {
-                  id: bids.find(bid => bid.isWinning)!.bidderId,
-                  username: bids.find(bid => bid.isWinning)!.bidder?.username || 'Anonymous'
+                  id: currentAuction.winnerId,
+                  username: (() => {
+                    // Try to get username from bids array
+                    const winnerBid = bids.find(bid => bid.bidderId === currentAuction.winnerId);
+                    return winnerBid?.bidder?.username || 'Winner';
+                  })()
                 },
-                bidTime: bids.find(bid => bid.isWinning)!.bidTime
+                bidTime: new Date().toISOString()
               } : undefined}
               onAcceptBid={() => handleSellerDecision('accept')}
               onRejectBid={() => handleSellerDecision('reject')}
               onCounterOffer={(amount) => handleSellerDecision('counter_offer', amount)}
+              onAcceptCounterOffer={() => handleCounterOfferResponse('accept')}
+              onRejectCounterOffer={() => handleCounterOfferResponse('reject')}
             />
+            </>
           )}
 
           {/* Auction Info */}
@@ -384,41 +550,6 @@ const AuctionDetail = () => {
             </div>
           )}
 
-          {/* Seller Decision Section */}
-          {isSeller && isAuctionEnded && currentAuction.sellerDecision === 'pending' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Auction Decision</h3>
-              <p className="text-gray-600 mb-4">
-                The auction has ended. Please make a decision about the highest bid.
-              </p>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={() => handleSellerDecision('accept')}
-                  className="w-full btn btn-success"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Accept Highest Bid (${currentAuction.currentPrice})
-                </button>
-                
-                <button
-                  onClick={() => handleSellerDecision('reject')}
-                  className="w-full btn btn-danger"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject All Bids
-                </button>
-                
-                <button
-                  onClick={() => setShowSellerDecision(true)}
-                  className="w-full btn btn-secondary"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Make Counter Offer
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Winning Bid Notification */}
           {isWinningBid && (

@@ -43,7 +43,13 @@ const schemas = {
     description: Joi.string().min(10).max(2000).required(),
     startingPrice: Joi.number().positive().precision(2).required(),
     bidIncrement: Joi.number().positive().precision(2).required(),
-    startTime: Joi.date().iso().min('now').required(),
+    startTime: Joi.date().iso().custom((value, helpers) => {
+      const now = new Date();
+      if (value <= now) {
+        return helpers.error('any.invalid', { message: 'Start time must be in the future' });
+      }
+      return value;
+    }).required(),
     endTime: Joi.date().iso().greater(Joi.ref('startTime')).required(),
     category: Joi.string().required(),
     condition: Joi.string().valid('new', 'like_new', 'good', 'fair', 'poor').default('good'),

@@ -22,6 +22,17 @@ const makeSellerDecision = asyncHandler(async (req, res) => {
         }]
       },
       {
+        model: Bid,
+        as: 'bids',
+        include: [{
+          model: User,
+          as: 'bidder',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'email']
+        }],
+        order: [['amount', 'DESC']],
+        limit: 1
+      },
+      {
         model: User,
         as: 'seller',
         attributes: ['id', 'username', 'firstName', 'lastName', 'email']
@@ -50,22 +61,39 @@ const makeSellerDecision = asyncHandler(async (req, res) => {
     });
   }
 
-  if (auction.sellerDecision && auction.sellerDecision !== 'pending') {
+  // Allow seller to make decisions if decision is pending or if they want to change a counter offer
+  if (auction.sellerDecision && auction.sellerDecision !== 'pending' && auction.sellerDecision !== 'counter_offered') {
     return res.status(400).json({
       success: false,
       message: 'Decision has already been made for this auction'
     });
   }
 
-  if (!auction.highestBid) {
+  console.log('🔍 Debug auction data:', {
+    id: auction.id,
+    sellerDecision: auction.sellerDecision,
+    highestBidId: auction.highestBidId,
+    highestBid: auction.highestBid,
+    bids: auction.bids ? auction.bids.length : 0
+  });
+
+  // Get the highest bid - try highestBid association first, then fallback to bids array
+  let highestBid = auction.highestBid;
+  let bidder;
+  
+  if (!highestBid && auction.bids && auction.bids.length > 0) {
+    highestBid = auction.bids[0]; // First bid in DESC order is the highest
+    console.log('🔄 Using fallback highest bid from bids array');
+  }
+  
+  if (!highestBid) {
     return res.status(400).json({
       success: false,
       message: 'No bids to accept or reject'
     });
   }
-
-  const highestBid = auction.highestBid;
-  const bidder = highestBid.bidder;
+  
+  bidder = highestBid.bidder;
 
   try {
     switch (decision) {
@@ -133,6 +161,16 @@ const handleAcceptBid = async (auction, highestBid, bidder) => {
     winnerId: bidder.id
   });
 
+  // Sync Redis with database to ensure consistency
+  try {
+    const updatedAuction = await redisService.syncAuctionWithDatabase(auction.id, Auction);
+    if (updatedAuction) {
+      console.log(`✅ Synced Redis with database for auction ${auction.id}, sellerDecision: ${updatedAuction.sellerDecision}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error syncing Redis with database for auction ${auction.id}:`, error);
+  }
+
   // Create notifications
   await Notification.create({
     userId: bidder.id,
@@ -184,6 +222,7 @@ const handleAcceptBid = async (auction, highestBid, bidder) => {
     type: 'auctionCompleted',
     auctionId: auction.id,
     status: 'completed',
+    sellerDecision: 'accepted',
     decision: 'accepted',
     finalPrice: highestBid.amount,
     winner: {
@@ -214,6 +253,16 @@ const handleRejectBid = async (auction, highestBid, bidder) => {
     status: 'completed',
     completedAt: new Date()
   });
+
+  // Sync Redis with database to ensure consistency
+  try {
+    const updatedAuction = await redisService.syncAuctionWithDatabase(auction.id, Auction);
+    if (updatedAuction) {
+      console.log(`✅ Synced Redis with database for auction ${auction.id}, sellerDecision: ${updatedAuction.sellerDecision}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error syncing Redis with database for auction ${auction.id}:`, error);
+  }
 
   // Create notifications
   await Notification.create({
@@ -265,6 +314,7 @@ const handleRejectBid = async (auction, highestBid, bidder) => {
     type: 'auctionCompleted',
     auctionId: auction.id,
     status: 'completed',
+    sellerDecision: 'rejected',
     decision: 'rejected'
   });
 
@@ -283,6 +333,16 @@ const handleCounterOffer = async (auction, highestBid, bidder, counterOfferAmoun
     counterOfferAmount: counterOfferAmount,
     counterOfferStatus: 'pending'
   });
+
+  // Sync Redis with database to ensure consistency
+  try {
+    const updatedAuction = await redisService.syncAuctionWithDatabase(auction.id, Auction);
+    if (updatedAuction) {
+      console.log(`✅ Synced Redis with database for auction ${auction.id}, sellerDecision: ${updatedAuction.sellerDecision}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error syncing Redis with database for auction ${auction.id}:`, error);
+  }
 
   // Create notifications
   await Notification.create({
@@ -329,6 +389,19 @@ const handleCounterOffer = async (auction, highestBid, bidder, counterOfferAmoun
     timestamp: new Date().toISOString(),
     auctionId: auction.id,
     isRead: false
+  });
+
+  // ✅ REAL-TIME: Broadcast to auction room
+  broadcastToAuction(auction.id, {
+    type: 'counterOfferSent',
+    auctionId: auction.id,
+    sellerDecision: 'counter_offered',
+    counterOfferAmount: counterOfferAmount,
+    originalBidAmount: highestBid.amount,
+    winner: {
+      id: bidder.id,
+      username: bidder.username
+    }
   });
 
   // Send email notification
@@ -396,6 +469,16 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         winnerId: bidderId
       });
 
+      // Sync Redis with database to ensure consistency
+      try {
+        const updatedAuction = await redisService.syncAuctionWithDatabase(auction.id, Auction);
+        if (updatedAuction) {
+          console.log(`✅ Synced Redis with database for auction ${auction.id}, counterOfferStatus: ${updatedAuction.counterOfferStatus}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error syncing Redis with database for auction ${auction.id}:`, error);
+      }
+
       // Create notifications
       await Notification.create({
         userId: bidderId,
@@ -456,12 +539,24 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
 
       // Send emails and generate invoices
       try {
+        // Send counter offer response email to seller
+        await emailService.sendCounterOfferResponseEmail(
+          auction.seller,
+          auction.highestBid.bidder,
+          auction,
+          'accepted',
+          auction.counterOfferAmount
+        );
+        
+        // Send bid accepted email to buyer
         await emailService.sendBidAcceptedEmail(
           auction.highestBid.bidder, 
           auction.seller, 
           auction, 
           auction.counterOfferAmount
         );
+        
+        // Generate and send invoices
         await invoiceService.generateAndSendInvoices(auction, auction.highestBid.bidder, auction.counterOfferAmount);
       } catch (error) {
         console.error('Failed to send emails or generate invoices:', error);
@@ -474,6 +569,16 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         status: 'completed',
         completedAt: new Date()
       });
+
+      // Sync Redis with database to ensure consistency
+      try {
+        const updatedAuction = await redisService.syncAuctionWithDatabase(auction.id, Auction);
+        if (updatedAuction) {
+          console.log(`✅ Synced Redis with database for auction ${auction.id}, counterOfferStatus: ${updatedAuction.counterOfferStatus}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error syncing Redis with database for auction ${auction.id}:`, error);
+      }
 
       // Create notifications
       await Notification.create({
@@ -526,6 +631,19 @@ const respondToCounterOffer = asyncHandler(async (req, res) => {
         status: 'completed',
         decision: 'counter_offer_rejected'
       });
+
+      // Send counter offer response email to seller
+      try {
+        await emailService.sendCounterOfferResponseEmail(
+          auction.seller,
+          auction.highestBid.bidder,
+          auction,
+          'rejected',
+          auction.counterOfferAmount
+        );
+      } catch (error) {
+        console.error('Failed to send counter offer response email:', error);
+      }
 
     } else {
       return res.status(400).json({

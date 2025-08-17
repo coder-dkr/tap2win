@@ -101,6 +101,16 @@ const placeBid = asyncHandler(async (req, res) => {
   await redisService.setAuctionHighestBid(auctionId, bidData);
   await redisService.incrementAuctionBidCount(auctionId);
   await redisService.addAuctionParticipant(auctionId, bidderId);
+  
+  // Sync Redis with database to ensure consistency
+  try {
+    const updatedAuction = await redisService.syncAuctionWithDatabase(auctionId, Auction);
+    if (updatedAuction) {
+      console.log(`✅ Synced Redis with database for auction ${auctionId} after new bid`);
+    }
+  } catch (error) {
+    console.error(`❌ Error syncing Redis with database for auction ${auctionId}:`, error);
+  }
 
   // Get updated auction with bid count
   const bidCount = await redisService.getAuctionBidCount(auctionId);
@@ -115,8 +125,9 @@ const placeBid = asyncHandler(async (req, res) => {
   });
 
   // ✅ REAL-TIME: Emit detailed bid update to all auction participants
-  broadcastToAuction(auctionId, {
+  const webSocketMessage = {
     type: 'newBid',
+    auctionId: auction.id,
     bid: bidWithBidder.toPublic(),
     auction: {
       id: auction.id,
@@ -125,7 +136,9 @@ const placeBid = asyncHandler(async (req, res) => {
       highestBidId: bid.id,
       updatedAt: new Date().toISOString()
     }
-  });
+  };
+  console.log('📡 Broadcasting newBid WebSocket message:', JSON.stringify(webSocketMessage, null, 2));
+  broadcastToAuction(auctionId, webSocketMessage);
 
   // ✅ REAL-TIME: Also broadcast to all users for auction list updates
   broadcastToAll({
@@ -142,6 +155,7 @@ const placeBid = asyncHandler(async (req, res) => {
 
   // Create notifications
   try {
+    console.log(`🔔 Creating new bid notification for seller ${auction.sellerId} on auction ${auction.id}`);
     // Notify seller
     await Notification.create({
       userId: auction.sellerId,
@@ -156,13 +170,15 @@ const placeBid = asyncHandler(async (req, res) => {
     });
 
     // Notify seller via socket
+    console.log(`📡 Broadcasting new bid notification to seller ${auction.sellerId}`);
     broadcastToUser(auction.sellerId, {
       type: 'notification',
       notificationType: 'new_bid',
       title: 'New Bid Received',
       message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
       auctionId: auction.id,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isRead: false
     });
 
     // Notify previous highest bidder if exists

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useAuctionStore } from '../stores/auctionStore';
 import { useWebSocketStore } from '../stores/websocketStore';
+import type { WebSocketMessage } from '../types';
 import { Gavel, Plus, Clock, TrendingUp, DollarSign } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -67,6 +68,23 @@ const Dashboard = () => {
       loadDashboardData();
     }
   }, [notifications]);
+
+  // ✅ REAL-TIME: Listen for WebSocket updates
+  useEffect(() => {
+    const handleWebSocketMessage = (data: WebSocketMessage) => {
+      if (data.type === 'newBid' || 
+          data.type === 'auctionUpdate' || 
+          data.type === 'auctionEnded' || 
+          data.type === 'auctionCompleted' ||
+          data.type === 'winnerAnnouncement') {
+        // ✅ REAL-TIME: Refresh dashboard data
+        loadDashboardData();
+      }
+    };
+
+    const unsubscribe = useWebSocketStore.getState().subscribe(handleWebSocketMessage);
+    return unsubscribe;
+  }, []);
 
   // ✅ REAL-TIME: Periodic refresh for real-time stats
   useEffect(() => {

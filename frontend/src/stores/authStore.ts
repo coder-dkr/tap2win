@@ -19,7 +19,7 @@ interface AuthActions {
     password: string;
     firstName: string;
     lastName: string;
-    role: 'buyer' | 'seller';
+    role: 'buyer' | 'seller' | 'admin';
   }) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -27,7 +27,7 @@ interface AuthActions {
     firstName?: string;
     lastName?: string;
     avatar?: string;
-    role?: 'buyer' | 'seller';
+    role?: 'buyer' | 'seller' | 'admin';
   }) => Promise<boolean>;
   changePassword: (passwords: {
     currentPassword: string;
