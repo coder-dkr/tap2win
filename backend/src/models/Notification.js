@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-
 const Notification = sequelize.define('Notification', {
   id: {
     type: DataTypes.UUID,
@@ -57,12 +56,9 @@ const Notification = sequelize.define('Notification', {
     }
   ]
 });
-
-// Instance methods
 Notification.prototype.markAsRead = async function() {
   this.isRead = true;
   this.readAt = new Date();
   await this.save();
 };
-
 module.exports = Notification;

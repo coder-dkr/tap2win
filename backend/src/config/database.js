@@ -1,15 +1,15 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Parse Supabase database URL manually to avoid pg-connection-string issues
+
 const parseSupabaseUrl = (url) => {
   if (!url) return null;
   
   try {
-    // Handle URLs that might be split across lines
+    
     const cleanUrl = url.replace(/\s+/g, '');
     
-    // Extract components from the URL
+    
     const match = cleanUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
     if (!match) {
       throw new Error('Invalid Supabase database URL format');
@@ -17,7 +17,7 @@ const parseSupabaseUrl = (url) => {
     
     const [, username, password, host, port, database] = match;
     
-    // URL decode the password (handle %40 for @ symbol)
+    
     const decodedPassword = decodeURIComponent(password);
     
     return {
@@ -33,7 +33,7 @@ const parseSupabaseUrl = (url) => {
   }
 };
 
-// Get database configuration
+
 const dbConfig = parseSupabaseUrl(process.env.SUPABASE_DATABASE_URL);
 
 if (!dbConfig) {
@@ -43,7 +43,7 @@ if (!dbConfig) {
   process.exit(1);
 }
 
-// Supabase connection configuration
+
 const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, {
   host: dbConfig.host,
   port: dbConfig.port,
@@ -73,7 +73,7 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ Supabase database connected successfully');
     
-    // Sync models in development
+
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ alter: true });
       console.log('✅ Database models synchronized with Supabase');

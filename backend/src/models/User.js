@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
-
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.UUID,
@@ -72,16 +71,12 @@ const User = sequelize.define('User', {
     }
   }
 });
-
-// Instance methods
 User.prototype.validatePassword = async function(password) {
   return await bcrypt.compare(password, this.password);
 };
-
 User.prototype.toJSON = function() {
   const values = Object.assign({}, this.get());
   delete values.password;
   return values;
 };
-
 module.exports = User;

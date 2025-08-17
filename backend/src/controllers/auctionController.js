@@ -29,7 +29,7 @@ const createAuction = asyncHandler(async (req, res) => {
     currentPrice: startingPrice
   });
 
-  // Load auction with seller data and images
+  
   const auctionWithSeller = await Auction.findByPk(auction.id, {
     include: [
       {
@@ -45,16 +45,16 @@ const createAuction = asyncHandler(async (req, res) => {
     ]
   });
 
-  // Cache auction data
+
   await redisService.cacheAuction(auction.id, auctionWithSeller);
 
-  // If auction starts immediately, add to active auctions
+  
   const now = new Date();
   if (new Date(startTime) <= now) {
     await redisService.addActiveAuction(auction.id, endTime);
   }
 
-  // ✅ REAL-TIME: Broadcast new auction to all users
+  
   broadcastToAll({
     type: 'newAuction',
     auction: {
@@ -73,7 +73,7 @@ const createAuction = asyncHandler(async (req, res) => {
     }
   });
 
-  // ✅ REAL-TIME: Send notification to the seller
+  
   broadcastToUser(req.user.id, {
     type: 'notification',
     notificationType: 'auctionCreated',
@@ -93,7 +93,7 @@ const createAuction = asyncHandler(async (req, res) => {
   });
 });
 
-// Helper function to calculate auction status based on time (NO DATABASE UPDATE)
+
 const calculateAuctionStatus = (auction) => {
   const now = new Date();
   const startTime = new Date(auction.startTime);
@@ -167,20 +167,20 @@ const getAuctions = asyncHandler(async (req, res) => {
     offset: parseInt(offset)
   });
 
-  // Calculate auction statuses in real-time and add bid counts (NO DATABASE UPDATE)
+
   const auctionsWithBidCount = await Promise.all(
     auctions.map(async (auction) => {
-      // Calculate status based on current time (NO DATABASE UPDATE)
+      
       const calculatedStatus = calculateAuctionStatus(auction);
       const bidCount = await redisService.getAuctionBidCount(auction.id);
       const auctionData = auction.toJSON ? auction.toJSON() : auction;
       
-      // Convert images array to URLs for backward compatibility
+      
       auctionData.images = auctionData.images?.map(img => img.url) || [];
       
       return {
         ...auctionData,
-        status: calculatedStatus, // Use the calculated status
+        status: calculatedStatus, 
         bidCount
       };
     })
@@ -203,7 +203,7 @@ const getAuctions = asyncHandler(async (req, res) => {
 const getAuctionById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Try to get from cache first
+  
   let auction = await redisService.getCachedAuction(id);
 
   if (!auction) {
@@ -240,21 +240,21 @@ const getAuctionById = asyncHandler(async (req, res) => {
       });
     }
 
-    // Cache for future requests
+    
     await redisService.cacheAuction(id, auction);
   }
 
-  // Calculate status in real-time (NO DATABASE UPDATE)
+
   const calculatedStatus = calculateAuctionStatus(auction);
 
-  // Get additional data from Redis
+  
   const bidCount = await redisService.getAuctionBidCount(id);
   const highestBid = await redisService.getAuctionHighestBid(id);
 
-  // Properly serialize the auction data to avoid circular references
+
   const auctionData = auction.toJSON ? auction.toJSON() : auction;
   
-  // Convert images array to URLs for backward compatibility
+  
   auctionData.images = auctionData.images?.map(img => img.url) || [];
   
   res.json({
@@ -262,7 +262,7 @@ const getAuctionById = asyncHandler(async (req, res) => {
     data: {
       auction: {
         ...auctionData,
-        status: calculatedStatus, // Use the calculated status
+        status: calculatedStatus, 
         bidCount,
         currentHighestBid: highestBid
       }
@@ -308,7 +308,7 @@ const updateAuction = asyncHandler(async (req, res) => {
 
   await auction.update(updates);
 
-  // Update cache
+  
   await redisService.deleteCachedAuction(id);
 
   res.json({
@@ -349,7 +349,7 @@ const deleteAuction = asyncHandler(async (req, res) => {
 
   await auction.destroy();
 
-  // Clean up cache and Redis data
+  
   await redisService.deleteCachedAuction(id);
   await redisService.removeActiveAuction(id);
 
@@ -393,7 +393,7 @@ const getMyAuctions = asyncHandler(async (req, res) => {
     offset: parseInt(offset)
   });
 
-  // Properly serialize auctions to avoid circular references
+  
   const serializedAuctions = auctions.map(auction => {
     const auctionData = auction.toJSON ? auction.toJSON() : auction;
     auctionData.images = auctionData.images?.map(img => img.url) || [];
@@ -443,7 +443,7 @@ const getMyBids = asyncHandler(async (req, res) => {
     offset: parseInt(offset)
   });
 
-  // Properly serialize bids to avoid circular references
+  
   const serializedBids = bids.map(bid => {
     const bidData = bid.toJSON ? bid.toJSON() : bid;
     if (bidData.auction && bidData.auction.images) {
@@ -472,7 +472,7 @@ const getAuctionBids = asyncHandler(async (req, res) => {
 
   const offset = (page - 1) * limit;
 
-  // Check if auction exists
+  
   const auction = await Auction.findByPk(id);
   if (!auction) {
     return res.status(404).json({
@@ -488,7 +488,7 @@ const getAuctionBids = asyncHandler(async (req, res) => {
       as: 'bidder',
       attributes: ['id', 'username']
     }],
-    order: [['amount', 'DESC']], // Show highest bids first
+    order: [['amount', 'DESC']],            
     limit: parseInt(limit),
     offset: parseInt(offset)
   });

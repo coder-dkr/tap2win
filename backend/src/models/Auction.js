@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-
 const Auction = sequelize.define('Auction', {
   id: {
     type: DataTypes.UUID,
@@ -64,7 +63,6 @@ const Auction = sequelize.define('Auction', {
     type: DataTypes.ENUM('pending', 'active', 'ended', 'completed', 'cancelled'),
     defaultValue: 'pending'
   },
-  // Images are now handled through CloudinaryFile association
   category: {
     type: DataTypes.STRING,
     allowNull: false
@@ -110,27 +108,20 @@ const Auction = sequelize.define('Auction', {
     }
   ]
 });
-
-// Instance methods
 Auction.prototype.isActive = function() {
   const now = new Date();
   const startTime = new Date(this.startTime);
   const endTime = new Date(this.endTime);
-  
   return now >= startTime && now <= endTime;
 };
-
 Auction.prototype.hasEnded = function() {
   const now = new Date();
   return now > this.endTime || this.status === 'ended';
 };
-
 Auction.prototype.canBid = function() {
   const now = new Date();
   const startTime = new Date(this.startTime);
   const endTime = new Date(this.endTime);
-  
-  // Calculate real-time status (NO DATABASE UPDATE)
   let realTimeStatus = this.status;
   if (now < startTime) {
     realTimeStatus = 'pending';
@@ -139,8 +130,6 @@ Auction.prototype.canBid = function() {
   } else if (now >= endTime) {
     realTimeStatus = 'ended';
   }
-  
   return realTimeStatus === 'active';
 };
-
 module.exports = Auction;

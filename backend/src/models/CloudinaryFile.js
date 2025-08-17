@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-
 const CloudinaryFile = sequelize.define('CloudinaryFile', {
   id: {
     type: DataTypes.UUID,
@@ -71,7 +70,7 @@ const CloudinaryFile = sequelize.define('CloudinaryFile', {
 }, {
   tableName: 'cloudinary_files',
   timestamps: true,
-  paranoid: true, // Soft deletes
+  paranoid: true, 
   indexes: [
     {
       fields: ['publicId']
@@ -87,38 +86,31 @@ const CloudinaryFile = sequelize.define('CloudinaryFile', {
     }
   ]
 });
-
-// Instance methods
 CloudinaryFile.prototype.toJSON = function() {
   const values = { ...this.get() };
   return values;
 };
-
-// Class methods
 CloudinaryFile.findByAuctionId = function(auctionId) {
   return this.findAll({
     where: { auctionId, isActive: true },
     order: [['createdAt', 'ASC']]
   });
 };
-
 CloudinaryFile.findByUserId = function(userId) {
   return this.findAll({
     where: { uploadedBy: userId, isActive: true },
     order: [['createdAt', 'DESC']]
   });
 };
-
 CloudinaryFile.findOrphanedFiles = function() {
   return this.findAll({
     where: { 
       auctionId: null, 
       isActive: true,
       createdAt: {
-        [require('sequelize').Op.lt]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Older than 24 hours
+        [require('sequelize').Op.lt]: new Date(Date.now() - 24 * 60 * 60 * 1000) 
       }
     }
   });
 };
-
 module.exports = CloudinaryFile;

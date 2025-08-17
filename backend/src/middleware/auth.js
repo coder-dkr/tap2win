@@ -1,28 +1,23 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
-
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
+    const token = authHeader && authHeader.split(' ')[1]; 
     if (!token) {
       return res.status(401).json({ 
         success: false, 
         message: 'Access token required' 
       });
     }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(decoded.userId);
-
     if (!user || !user.isActive) {
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid or inactive user' 
       });
     }
-
     req.user = user;
     next();
   } catch (error) {
@@ -38,7 +33,6 @@ const authenticateToken = async (req, res, next) => {
         message: 'Token expired' 
       });
     }
-    
     console.error('Auth middleware error:', error);
     return res.status(500).json({ 
       success: false, 
@@ -46,7 +40,6 @@ const authenticateToken = async (req, res, next) => {
     });
   }
 };
-
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ 
@@ -56,7 +49,6 @@ const requireAdmin = (req, res, next) => {
   }
   next();
 };
-
 const requireSeller = (req, res, next) => {
   if (req.user.role !== 'seller' && req.user.role !== 'admin') {
     return res.status(403).json({ 
@@ -66,7 +58,6 @@ const requireSeller = (req, res, next) => {
   }
   next();
 };
-
 const requireBuyer = (req, res, next) => {
   if (req.user.role !== 'buyer' && req.user.role !== 'admin') {
     return res.status(403).json({ 
@@ -76,7 +67,6 @@ const requireBuyer = (req, res, next) => {
   }
   next();
 };
-
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -88,16 +78,11 @@ const requireRole = (roles) => {
     next();
   };
 };
-
-// Flexible authorize function that can be used at app level
 const authorize = (roles) => {
   return (req, res, next) => {
-    // If no roles specified, allow all authenticated users
     if (!roles || roles.length === 0) {
       return next();
     }
-    
-    // Check if user has any of the required roles
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
@@ -107,28 +92,22 @@ const authorize = (roles) => {
     next();
   };
 };
-
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
-
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findByPk(decoded.userId);
-      
       if (user && user.isActive) {
         req.user = user;
       }
     }
-    
     next();
   } catch (error) {
-    // For optional auth, we don't return errors, just continue without user
     next();
   }
 };
-
 module.exports = {
   authenticateToken,
   requireAdmin,

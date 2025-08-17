@@ -1,5 +1,4 @@
 const Joi = require('joi');
-
 const validateRequest = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
@@ -13,7 +12,6 @@ const validateRequest = (schema) => {
     next();
   };
 };
-
 const validateQuery = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.query);
@@ -27,8 +25,6 @@ const validateQuery = (schema) => {
     next();
   };
 };
-
-// Common validation schemas
 const schemas = {
   register: Joi.object({
     username: Joi.string().alphanum().min(3).max(50).required(),
@@ -38,12 +34,10 @@ const schemas = {
     lastName: Joi.string().min(1).max(50).required(),
     role: Joi.string().valid('buyer', 'seller').required()
   }),
-
   login: Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().required()
   }),
-
   createAuction: Joi.object({
     title: Joi.string().min(3).max(200).required(),
     description: Joi.string().min(10).max(2000).required(),
@@ -55,11 +49,9 @@ const schemas = {
     condition: Joi.string().valid('new', 'like_new', 'good', 'fair', 'poor').default('good'),
     images: Joi.array().items(Joi.string().uri()).max(10).default([])
   }),
-
   placeBid: Joi.object({
     amount: Joi.number().positive().precision(2).required()
   }),
-
   sellerDecision: Joi.object({
     decision: Joi.string().valid('accept', 'reject', 'counter_offer').required(),
     counterOfferAmount: Joi.when('decision', {
@@ -68,18 +60,15 @@ const schemas = {
       otherwise: Joi.forbidden()
     })
   }),
-
   counterOfferResponse: Joi.object({
     response: Joi.string().valid('accept', 'reject').required()
   }),
-
   updateProfile: Joi.object({
     firstName: Joi.string().min(1).max(50),
     lastName: Joi.string().min(1).max(50),
     avatar: Joi.string().uri(),
     role: Joi.string().valid('buyer', 'seller')
   }),
-
   pagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(10),
@@ -89,20 +78,17 @@ const schemas = {
     category: Joi.string().allow('', null),
     search: Joi.string().allow('', null)
   }),
-
   adminPagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(50),
     search: Joi.string().allow('', null)
   }),
-
   adminUserPagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(50),
     role: Joi.string().valid('buyer', 'seller', 'admin').allow('', null),
     search: Joi.string().allow('', null)
   }),
-
   adminAuctionPagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(50),
@@ -110,7 +96,6 @@ const schemas = {
     search: Joi.string().allow('', null)
   })
 };
-
 module.exports = {
   validateRequest,
   validateQuery,

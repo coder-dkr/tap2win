@@ -3,17 +3,14 @@ const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
 const emailService = require('./emailService');
-
 class InvoiceService {
   constructor() {
     this.templates = new Map();
   }
-
   async loadInvoiceTemplate() {
     if (this.templates.has('invoice')) {
       return this.templates.get('invoice');
     }
-
     try {
       const templatePath = path.join(__dirname, '../templates', 'invoice.hbs');
       const templateContent = await fs.readFile(templatePath, 'utf8');
@@ -25,17 +22,14 @@ class InvoiceService {
       return null;
     }
   }
-
   async generateInvoice(auction, buyer, seller, finalAmount) {
     try {
       const template = await this.loadInvoiceTemplate();
       if (!template) {
         throw new Error('Failed to load invoice template');
       }
-
       const invoiceNumber = this.generateInvoiceNumber();
       const invoiceDate = new Date().toISOString().split('T')[0];
-
       const invoiceData = {
         invoiceNumber,
         invoiceDate,
@@ -58,7 +52,7 @@ class InvoiceService {
         transaction: {
           finalAmount: finalAmount.toFixed(2),
           currency: 'USD',
-          platformFee: (finalAmount * 0.05).toFixed(2), // 5% platform fee
+          platformFee: (finalAmount * 0.05).toFixed(2), 
           sellerAmount: (finalAmount * 0.95).toFixed(2)
         },
         company: {
@@ -68,18 +62,13 @@ class InvoiceService {
           phone: '+1 (555) 123-4567'
         }
       };
-
       const html = template(invoiceData);
-
-      // Generate PDF
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
-      
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
@@ -90,58 +79,42 @@ class InvoiceService {
           left: '20mm'
         }
       });
-
       await browser.close();
-
       return {
         buffer: pdfBuffer,
         filename: `invoice-${invoiceNumber}.pdf`,
         data: invoiceData
       };
-
     } catch (error) {
       console.error('Error generating invoice:', error);
       throw error;
     }
   }
-
   generateInvoiceNumber() {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
     return `INV-${timestamp}-${random}`;
   }
-
   async generateAndSendInvoices(auction, buyer, finalAmount) {
     try {
-      // Get seller info
       const seller = await auction.getSeller();
-
-      // Generate invoice
       const invoice = await this.generateInvoice(auction, buyer, seller, finalAmount);
-
-      // ✅ REAL-TIME: Send to buyer with proper invoice data
       await emailService.sendInvoiceEmail(buyer, {
         buffer: invoice.buffer,
         filename: invoice.filename,
         data: invoice.data
       }, auction, true);
-
-      // ✅ REAL-TIME: Send to seller with proper invoice data
       await emailService.sendInvoiceEmail(seller, {
         buffer: invoice.buffer,
         filename: invoice.filename,
         data: invoice.data
       }, auction, false);
-
       console.log(`✅ REAL-TIME: Invoices sent for auction ${auction.id} - Amount: $${finalAmount}`);
-
       return invoice;
-
     } catch (error) {
       console.error('Error generating and sending invoices:', error);
       throw error;
     }
   }
 }
-
 module.exports = new InvoiceService();

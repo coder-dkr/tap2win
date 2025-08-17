@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-
 const Bid = sequelize.define('Bid', {
   id: {
     type: DataTypes.UUID,
@@ -43,8 +42,6 @@ const Bid = sequelize.define('Bid', {
     }
   ]
 });
-
-// Instance methods
 Bid.prototype.toPublic = function() {
   return {
     id: this.id,
@@ -56,5 +53,4 @@ Bid.prototype.toPublic = function() {
     }
   };
 };
-
 module.exports = Bid;
