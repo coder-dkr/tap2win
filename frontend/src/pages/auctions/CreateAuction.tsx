@@ -32,6 +32,19 @@ const CreateAuction = () => {
   // Watch form values for real-time validation
   const startingPrice = watch('startingPrice');
   const bidIncrement = watch('bidIncrement');
+  const startTime = watch('startTime');
+  const endTime = watch('endTime');
+
+  // Helper function to format time for display
+  const formatTimeForDisplay = (localDateTime: string) => {
+    if (!localDateTime) return '';
+    try {
+      const localDate = new Date(localDateTime);
+      return localDate.toLocaleString();
+    } catch {
+      return localDateTime;
+    }
+  };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -50,8 +63,18 @@ const CreateAuction = () => {
   const onSubmit = async (data: CreateAuctionForm) => {
     try {
       setIsSubmitting(true);
+      
+      // Convert local datetime to UTC before sending to server
+      const convertToUTC = (localDateTime: string) => {
+        if (!localDateTime) return localDateTime;
+        const localDate = new Date(localDateTime);
+        return localDate.toISOString();
+      };
+      
       const success = await createAuction({
         ...data,
+        startTime: convertToUTC(data.startTime),
+        endTime: convertToUTC(data.endTime),
         images: images,
       });
       
@@ -252,6 +275,11 @@ const CreateAuction = () => {
               {errors.startTime && (
                 <p className="mt-1 text-sm text-red-600">{errors.startTime.message}</p>
               )}
+              {startTime && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Will start at: {formatTimeForDisplay(startTime)}
+                </p>
+              )}
             </div>
 
             <div>
@@ -268,6 +296,11 @@ const CreateAuction = () => {
               </div>
               {errors.endTime && (
                 <p className="mt-1 text-sm text-red-600">{errors.endTime.message}</p>
+              )}
+              {endTime && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Will end at: {formatTimeForDisplay(endTime)}
+                </p>
               )}
             </div>
           </div>
