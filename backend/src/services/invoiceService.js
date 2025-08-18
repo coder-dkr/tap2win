@@ -193,7 +193,7 @@ class InvoiceService {
       doc.setTextColor(100);
       doc.text('Thank you for using Tap2Win!', 105, 250, { align: 'center' });
       doc.text('This is an automatically generated invoice. Please keep this for your records.', 105, 255, { align: 'center' });
-      doc.text(`© 2024 ${invoiceData.company.name}. All rights reserved.`, 105, 260, { align: 'center' });
+      doc.text(`© 2025 ${invoiceData.company.name}. All rights reserved.`, 105, 260, { align: 'center' });
       
       const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
       console.log(`✅ jsPDF PDF generated (${pdfBuffer.length} bytes)`);

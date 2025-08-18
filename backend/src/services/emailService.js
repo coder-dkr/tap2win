@@ -227,7 +227,7 @@ class EmailService {
         firstName: bidder.firstName,
         auctionTitle: auction.title,
         counterAmount,
-        responseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}/counter-offer`
+        responseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auctions/${auction.id}`
       }
     );
   }

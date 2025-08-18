@@ -11,7 +11,7 @@ const Footer = () => {
           </div>
           
           <div className="text-sm text-gray-400">
-            © 2024 Tap2Win. All rights reserved.
+            © 2025 Tap2Win. All rights reserved.
           </div>
           
           <div className="flex space-x-6 text-sm">
