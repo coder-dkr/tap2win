@@ -266,6 +266,29 @@ class EmailService {
       isWinner: isWinner
     });
 
+    // Validate PDF buffer before sending
+    if (!invoice.buffer || invoice.buffer.length === 0) {
+      throw new Error('Invoice PDF buffer is empty or invalid');
+    }
+
+    // Check PDF header to ensure it's a valid PDF
+    const pdfHeader = invoice.buffer.toString('ascii', 0, 4);
+    if (pdfHeader !== '%PDF') {
+      throw new Error('Invoice buffer is not a valid PDF file');
+    }
+
+    console.log(`✅ REAL-TIME: PDF validation passed - Header: ${pdfHeader}, Size: ${invoice.buffer.length} bytes`);
+
+    // Ensure the buffer is properly encoded for email attachment
+    let base64Content;
+    try {
+      base64Content = invoice.buffer.toString('base64');
+      console.log(`✅ REAL-TIME: PDF buffer converted to base64 (${base64Content.length} characters)`);
+    } catch (encodingError) {
+      console.error('❌ Error encoding PDF buffer to base64:', encodingError);
+      throw new Error('Failed to encode PDF for email attachment');
+    }
+
     // ✅ REAL-TIME: Send email with PDF attachment
     await this.sendEmail(
       recipient.email,
@@ -279,10 +302,11 @@ class EmailService {
         invoiceDate: invoice.data.invoiceDate,
         attachments: [
           {
-            content: invoice.buffer.toString('base64'),
+            content: base64Content,
             filename: invoice.filename,
             type: 'application/pdf',
-            disposition: 'attachment'
+            disposition: 'attachment',
+            content_id: `invoice-${invoice.data.invoiceNumber}`
           }
         ]
       }
