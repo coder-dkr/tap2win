@@ -118,12 +118,13 @@ const getProfile = asyncHandler(async (req, res) => {
   });
 });
 const updateProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, avatar } = req.body;
+  const { firstName, lastName, avatar , role } = req.body;
   const userId = req.user.id;
   const user = await User.findByPk(userId);
   if (firstName) user.firstName = firstName;
   if (lastName) user.lastName = lastName;
   if (avatar) user.avatar = avatar;
+  if (role) user.role = role;
   await user.save();
   res.json({
     success: true,
