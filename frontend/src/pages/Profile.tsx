@@ -163,7 +163,7 @@ const Profile = () => {
                   </button>
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">{user.username}</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{user.username} ({user.role})</h3>
                   <p className="text-sm text-gray-500">Member since {new Date(user.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
@@ -266,9 +266,9 @@ const Profile = () => {
                       {...registerProfile('role', { required: 'Please select a role' })}
                       type="radio"
                       value="buyer"
-                      className="sr-only"
+                      className="sr-only peer"
                     />
-                    <div className="border-2 border-gray-200 rounded-lg p-4 text-center hover:border-primary transition-colors peer-checked:border-primary peer-checked:bg-primary/5">
+                    <div className="border-2 border-gray-200 rounded-lg p-4 text-center peer-checked:border-primary peer-checked:bg-primary/10 hover:border-primary transition-colors">
                       <ShoppingBag className="h-8 w-8 mx-auto mb-2 text-gray-600" />
                       <div className="font-medium text-gray-900">Buyer</div>
                       <div className="text-sm text-gray-500">Place bids on auctions</div>
@@ -279,12 +279,25 @@ const Profile = () => {
                       {...registerProfile('role', { required: 'Please select a role' })}
                       type="radio"
                       value="seller"
-                      className="sr-only"
+                      className="sr-only peer"
                     />
                     <div className="border-2 border-gray-200 rounded-lg p-4 text-center hover:border-primary transition-colors peer-checked:border-primary peer-checked:bg-primary/5">
                       <Store className="h-8 w-8 mx-auto mb-2 text-gray-600" />
                       <div className="font-medium text-gray-900">Seller</div>
                       <div className="text-sm text-gray-500">Create and manage auctions</div>
+                    </div>
+                  </label>
+                  <label className="relative cursor-pointer">
+                    <input
+                      {...registerProfile('role', { required: 'Please select a role' })}
+                      type="radio"
+                      value="admin"
+                      className="sr-only peer"
+                    />
+                    <div className="border-2 border-gray-200 rounded-lg p-4 text-center hover:border-primary transition-colors peer-checked:border-primary peer-checked:bg-primary/5">
+                      <Store className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                      <div className="font-medium text-gray-900">Admin</div>
+                      <div className="text-sm text-gray-500">Moderate</div>
                     </div>
                   </label>
                 </div>
