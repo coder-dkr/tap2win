@@ -52,7 +52,7 @@ const Profile = () => {
       // Only pass allowed fields to updateProfile to fix type error
       const { firstName, lastName, avatar, role } = data;
       // Only allow 'buyer' or 'seller' for role
-      const safeRole = role === 'buyer' || role === 'seller' ? role : undefined;
+      const safeRole = role === 'admin' || role === 'buyer' || role === 'seller' ? role : undefined;
       const success = await updateProfile({
         firstName,
         lastName,
