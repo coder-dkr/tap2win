@@ -73,7 +73,7 @@ const schemas = {
     firstName: Joi.string().min(1).max(50),
     lastName: Joi.string().min(1).max(50),
     avatar: Joi.string().uri(),
-    role: Joi.string().valid('buyer', 'seller')
+    role: Joi.string().valid('buyer', 'seller','admin')
   }),
   pagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
