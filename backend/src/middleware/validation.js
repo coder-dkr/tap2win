@@ -56,7 +56,16 @@ const schemas = {
     images: Joi.array().items(Joi.string().uri()).max(10).default([])
   }),
   placeBid: Joi.object({
-    amount: Joi.number().positive().precision(2).required()
+    amount: Joi.alternatives().try(
+      Joi.number().positive().precision(2),
+      Joi.string().pattern(/^\d+(\.\d{1,2})?$/).custom((value, helpers) => {
+        const num = parseFloat(value);
+        if (isNaN(num) || num <= 0) {
+          return helpers.error('any.invalid', { message: 'Amount must be a positive number' });
+        }
+        return num;
+      })
+    ).required()
   }),
   sellerDecision: Joi.object({
     decision: Joi.string().valid('accept', 'reject', 'counter_offer').required(),

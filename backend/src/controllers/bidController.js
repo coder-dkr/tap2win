@@ -19,8 +19,9 @@ const placeBid = asyncHandler(async (req, res) => {
     });
   }
 
-  // Validate amount is a positive number
-  if (typeof amount !== 'number' || amount <= 0) {
+  // Convert amount to number and validate
+  const numericAmount = parseFloat(amount);
+  if (isNaN(numericAmount) || numericAmount <= 0) {
     return res.status(400).json({
       success: false,
       message: 'Bid amount must be a positive number'
@@ -113,7 +114,7 @@ const placeBid = asyncHandler(async (req, res) => {
 
     // Validate bid amount
     const minimumBid = currentPrice + auction.bidIncrement;
-    if (amount < minimumBid) {
+    if (numericAmount < minimumBid) {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
@@ -143,7 +144,7 @@ const placeBid = asyncHandler(async (req, res) => {
     const bid = await Bid.create({
       auctionId,
       bidderId,
-      amount
+      amount: numericAmount
     }, { transaction });
 
     // Update previous highest bid status if exists
@@ -162,7 +163,7 @@ const placeBid = asyncHandler(async (req, res) => {
 
     // Update auction's current price and highest bid
     await auction.update({
-      currentPrice: amount,
+      currentPrice: numericAmount,
       highestBidId: bid.id
     }, { transaction });
 
@@ -170,7 +171,7 @@ const placeBid = asyncHandler(async (req, res) => {
     try {
       const bidData = {
         id: bid.id,
-        amount: bid.amount,
+        amount: numericAmount,
         bidderId: bid.bidderId,
         bidderUsername: req.user.username,
         bidTime: bid.bidTime
@@ -226,7 +227,7 @@ const placeBid = asyncHandler(async (req, res) => {
         bid: bidWithBidder.toPublic(),
         auction: {
           id: auction.id,
-          currentPrice: amount,
+          currentPrice: numericAmount,
           bidCount,
           highestBidId: bid.id,
           updatedAt: new Date().toISOString()
@@ -241,7 +242,7 @@ const placeBid = asyncHandler(async (req, res) => {
         auctionId: auction.id,
         auction: {
           id: auction.id,
-          currentPrice: amount,
+          currentPrice: numericAmount,
           bidCount,
           highestBidId: bid.id,
           updatedAt: new Date().toISOString()
@@ -259,10 +260,10 @@ const placeBid = asyncHandler(async (req, res) => {
         userId: auction.sellerId,
         type: 'new_bid',
         title: 'New Bid Received',
-        message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
+        message: `${req.user.username} placed a bid of $${numericAmount} on ${auction.title}`,
         data: {
           auctionId: auction.id,
-          bidAmount: amount,
+          bidAmount: numericAmount,
           bidderId: req.user.id
         }
       });
@@ -274,7 +275,7 @@ const placeBid = asyncHandler(async (req, res) => {
           type: 'notification',
           notificationType: 'new_bid',
           title: 'New Bid Received',
-          message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
+          message: `${req.user.username} placed a bid of $${numericAmount} on ${auction.title}`,
           auctionId: auction.id,
           timestamp: new Date().toISOString(),
           isRead: false
@@ -289,11 +290,11 @@ const placeBid = asyncHandler(async (req, res) => {
           userId: currentHighestBid.bidderId,
           type: 'outbid',
           title: 'You\'ve been outbid',
-          message: `Your bid on ${auction.title} has been outbid. Current highest bid: $${amount}`,
+          message: `Your bid on ${auction.title} has been outbid. Current highest bid: $${numericAmount}`,
           data: {
             auctionId: auction.id,
             previousBidAmount: currentHighestBid.amount,
-            newBidAmount: amount
+            newBidAmount: numericAmount
           }
         });
 
@@ -335,7 +336,7 @@ const placeBid = asyncHandler(async (req, res) => {
         bid: bidWithBidder,
         auction: {
           id: auction.id,
-          currentPrice: amount,
+          currentPrice: numericAmount,
           bidCount
         }
       }

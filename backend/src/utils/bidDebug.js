@@ -99,15 +99,24 @@ const debugBidCreation = async (auctionId, bidderId, amount) => {
     
     // Test 8: Validate bid amount
     console.log('8. Validating bid amount...');
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      console.log('❌ Invalid bid amount');
+      return { 
+        success: false, 
+        error: 'Bid amount must be a positive number' 
+      };
+    }
+    
     const currentPrice = currentHighestBid ? currentHighestBid.amount : auction.startingPrice;
     const minimumBid = currentPrice + auction.bidIncrement;
     
     console.log(`Current price: $${currentPrice}`);
     console.log(`Bid increment: $${auction.bidIncrement}`);
     console.log(`Minimum bid: $${minimumBid}`);
-    console.log(`Proposed bid: $${amount}`);
+    console.log(`Proposed bid: $${numericAmount}`);
     
-    if (amount < minimumBid) {
+    if (numericAmount < minimumBid) {
       console.log('❌ Bid amount too low');
       return { 
         success: false, 
