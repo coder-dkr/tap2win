@@ -8,7 +8,22 @@ class RedisService {
     try {
       const key = `auction:${auctionId}:highest_bid`;
       const data = await redisClient.get(key);
-      return data || null;
+      
+      if (!data) {
+        return null;
+      }
+      
+      // Handle both string and object data
+      if (typeof data === 'string') {
+        try {
+          return JSON.parse(data);
+        } catch (parseError) {
+          console.error('Error parsing Redis bid data:', parseError);
+          return null;
+        }
+      }
+      
+      return data;
     } catch (error) {
       console.error('Error getting auction highest bid:', error);
       return null;

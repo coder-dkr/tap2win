@@ -3,232 +3,353 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const redisService = require('../services/redisService');
 const emailService = require('../services/emailService');
 const { broadcastToAuction, broadcastToUser, broadcastToAll } = require('../socket/socketManager');
+const { sequelize } = require('../config/database');
+const { debugBidCreation } = require('../utils/bidDebug');
 
 const placeBid = asyncHandler(async (req, res) => {
   const { auctionId } = req.params;
   const { amount } = req.body;
   const bidderId = req.user.id;
 
-  // Get auction details
-  const auction = await Auction.findByPk(auctionId, {
-    include: [{
-      model: User,
-      as: 'seller',
-      attributes: ['id', 'username', 'firstName', 'lastName', 'email']
-    }]
-  });
-
-  if (!auction) {
-    return res.status(404).json({
-      success: false,
-      message: 'Auction not found'
-    });
-  }
-
-  // Check if auction is active
-  if (!auction.canBid()) {
+  // Validate input parameters
+  if (!auctionId || !amount || !bidderId) {
     return res.status(400).json({
       success: false,
-      message: 'Auction is not active for bidding'
+      message: 'Missing required parameters: auctionId, amount, or bidderId'
     });
   }
 
-  // Check if seller is trying to bid on their own auction
-  if (auction.sellerId === bidderId) {
+  // Validate amount is a positive number
+  if (typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({
       success: false,
-      message: 'You cannot bid on your own auction'
+      message: 'Bid amount must be a positive number'
     });
   }
 
-  // Get current highest bid from Redis
-  const currentHighestBid = await redisService.getAuctionHighestBid(auctionId);
-  const currentPrice = currentHighestBid ? currentHighestBid.amount : auction.startingPrice;
+  // Start database transaction
+  const transaction = await sequelize.transaction();
 
-  // Validate bid amount
-  const minimumBid = currentPrice + auction.bidIncrement;
-  if (amount < minimumBid) {
-    return res.status(400).json({
-      success: false,
-      message: `Bid must be at least $${minimumBid.toFixed(2)}`
-    });
-  }
-
-  // Check rate limiting
-  const rateLimitKey = `bid_limit:${bidderId}:${auctionId}`;
-  const canBid = await redisService.checkRateLimit(rateLimitKey, 10, 60); // 10 bids per minute
-  
-  if (!canBid) {
-    return res.status(429).json({
-      success: false,
-      message: 'Too many bids. Please wait before bidding again.'
-    });
-  }
-
-  // Create the bid
-  const bid = await Bid.create({
-    auctionId,
-    bidderId,
-    amount
-  });
-
-  // Update previous highest bid status
-  if (currentHighestBid) {
-    await Bid.update(
-      { isWinning: false, status: 'outbid' },
-      { where: { id: currentHighestBid.id } }
-    );
-  }
-
-  // Mark new bid as winning
-  await bid.update({ isWinning: true, status: 'winning' });
-
-  // Update auction's current price and highest bid
-  await auction.update({
-    currentPrice: amount,
-    highestBidId: bid.id
-  });
-
-  // Update Redis cache
-  const bidData = {
-    id: bid.id,
-    amount: bid.amount,
-    bidderId: bid.bidderId,
-    bidderUsername: req.user.username,
-    bidTime: bid.bidTime
-  };
-
-  await redisService.setAuctionHighestBid(auctionId, bidData);
-  await redisService.incrementAuctionBidCount(auctionId);
-  await redisService.addAuctionParticipant(auctionId, bidderId);
-  
-  // Sync Redis with database to ensure consistency
   try {
-    const updatedAuction = await redisService.syncAuctionWithDatabase(auctionId, Auction);
-    if (updatedAuction) {
-      console.log(`✅ Synced Redis with database for auction ${auctionId} after new bid`);
+    // Get auction details
+    const auction = await Auction.findByPk(auctionId, {
+      include: [{
+        model: User,
+        as: 'seller',
+        attributes: ['id', 'username', 'firstName', 'lastName', 'email']
+      }],
+      transaction
+    });
+
+    if (!auction) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Auction not found'
+      });
     }
-  } catch (error) {
-    console.error(`❌ Error syncing Redis with database for auction ${auctionId}:`, error);
-  }
 
-  // Get updated auction with bid count
-  const bidCount = await redisService.getAuctionBidCount(auctionId);
-
-  // Load bidder info for response
-  const bidWithBidder = await Bid.findByPk(bid.id, {
-    include: [{
-      model: User,
-      as: 'bidder',
-      attributes: ['id', 'username', 'firstName', 'lastName']
-    }]
-  });
-
-  // ✅ REAL-TIME: Emit detailed bid update to all auction participants
-  const webSocketMessage = {
-    type: 'newBid',
-    auctionId: auction.id,
-    bid: bidWithBidder.toPublic(),
-    auction: {
-      id: auction.id,
-      currentPrice: amount,
-      bidCount,
-      highestBidId: bid.id,
-      updatedAt: new Date().toISOString()
+    // Check if auction is active
+    if (!auction.canBid()) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Auction is not active for bidding'
+      });
     }
-  };
-  console.log('📡 Broadcasting newBid WebSocket message:', JSON.stringify(webSocketMessage, null, 2));
-  broadcastToAuction(auctionId, webSocketMessage);
 
-  // ✅ REAL-TIME: Also broadcast to all users for auction list updates
-  broadcastToAll({
-    type: 'auctionUpdate',
-    auctionId: auction.id,
-    auction: {
-      id: auction.id,
-      currentPrice: amount,
-      bidCount,
-      highestBidId: bid.id,
-      updatedAt: new Date().toISOString()
+    // Check if seller is trying to bid on their own auction
+    if (auction.sellerId === bidderId) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot bid on your own auction'
+      });
     }
-  });
 
-  // Create notifications
-  try {
-    console.log(`🔔 Creating new bid notification for seller ${auction.sellerId} on auction ${auction.id}`);
-    // Notify seller
-    await Notification.create({
-      userId: auction.sellerId,
-      type: 'new_bid',
-      title: 'New Bid Received',
-      message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
-      data: {
-        auctionId: auction.id,
-        bidAmount: amount,
-        bidderId: req.user.id
+    // Get current highest bid from Redis with proper error handling
+    let currentHighestBid = null;
+    try {
+      const redisBidData = await redisService.getAuctionHighestBid(auctionId);
+      if (redisBidData) {
+        // Parse JSON if it's a string
+        if (typeof redisBidData === 'string') {
+          currentHighestBid = JSON.parse(redisBidData);
+        } else {
+          currentHighestBid = redisBidData;
+        }
       }
+    } catch (redisError) {
+      console.error('Error getting highest bid from Redis:', redisError);
+      // Continue without Redis data, will use database
+    }
+
+    // Fallback: Get highest bid from database if Redis failed
+    if (!currentHighestBid) {
+      try {
+        const dbHighestBid = await Bid.findOne({
+          where: { 
+            auctionId,
+            isWinning: true 
+          },
+          order: [['amount', 'DESC']],
+          transaction
+        });
+        
+        if (dbHighestBid) {
+          currentHighestBid = {
+            id: dbHighestBid.id,
+            amount: dbHighestBid.amount,
+            bidderId: dbHighestBid.bidderId,
+            bidTime: dbHighestBid.bidTime
+          };
+        }
+      } catch (dbError) {
+        console.error('Error getting highest bid from database:', dbError);
+      }
+    }
+
+    const currentPrice = currentHighestBid ? currentHighestBid.amount : auction.startingPrice;
+
+    // Validate bid amount
+    const minimumBid = currentPrice + auction.bidIncrement;
+    if (amount < minimumBid) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Bid must be at least $${minimumBid.toFixed(2)}`
+      });
+    }
+
+    // Check rate limiting with error handling
+    let canBid = true;
+    try {
+      const rateLimitKey = `bid_limit:${bidderId}:${auctionId}`;
+      canBid = await redisService.checkRateLimit(rateLimitKey, 10, 60); // 10 bids per minute
+    } catch (rateLimitError) {
+      console.error('Error checking rate limit:', rateLimitError);
+      // Continue without rate limiting if Redis fails
+    }
+    
+    if (!canBid) {
+      await transaction.rollback();
+      return res.status(429).json({
+        success: false,
+        message: 'Too many bids. Please wait before bidding again.'
+      });
+    }
+
+    // Create the bid
+    const bid = await Bid.create({
+      auctionId,
+      bidderId,
+      amount
+    }, { transaction });
+
+    // Update previous highest bid status if exists
+    if (currentHighestBid && currentHighestBid.id) {
+      await Bid.update(
+        { isWinning: false, status: 'outbid' },
+        { 
+          where: { id: currentHighestBid.id },
+          transaction 
+        }
+      );
+    }
+
+    // Mark new bid as winning
+    await bid.update({ isWinning: true, status: 'winning' }, { transaction });
+
+    // Update auction's current price and highest bid
+    await auction.update({
+      currentPrice: amount,
+      highestBidId: bid.id
+    }, { transaction });
+
+    // Update Redis cache with error handling
+    try {
+      const bidData = {
+        id: bid.id,
+        amount: bid.amount,
+        bidderId: bid.bidderId,
+        bidderUsername: req.user.username,
+        bidTime: bid.bidTime
+      };
+
+      await redisService.setAuctionHighestBid(auctionId, bidData);
+      await redisService.incrementAuctionBidCount(auctionId);
+      await redisService.addAuctionParticipant(auctionId, bidderId);
+      
+      // Sync Redis with database to ensure consistency
+      try {
+        const updatedAuction = await redisService.syncAuctionWithDatabase(auctionId, Auction);
+        if (updatedAuction) {
+          console.log(`✅ Synced Redis with database for auction ${auctionId} after new bid`);
+        }
+      } catch (syncError) {
+        console.error(`❌ Error syncing Redis with database for auction ${auctionId}:`, syncError);
+      }
+    } catch (redisError) {
+      console.error('Error updating Redis cache:', redisError);
+      // Continue without Redis updates
+    }
+
+    // Get updated auction with bid count
+    let bidCount = 0;
+    try {
+      bidCount = await redisService.getAuctionBidCount(auctionId);
+    } catch (countError) {
+      console.error('Error getting bid count from Redis:', countError);
+      // Get count from database as fallback
+      const dbBidCount = await Bid.count({ where: { auctionId }, transaction });
+      bidCount = dbBidCount;
+    }
+
+    // Load bidder info for response
+    const bidWithBidder = await Bid.findByPk(bid.id, {
+      include: [{
+        model: User,
+        as: 'bidder',
+        attributes: ['id', 'username', 'firstName', 'lastName']
+      }],
+      transaction
     });
 
-    // Notify seller via socket
-    console.log(`📡 Broadcasting new bid notification to seller ${auction.sellerId}`);
-    broadcastToUser(auction.sellerId, {
-      type: 'notification',
-      notificationType: 'new_bid',
-      title: 'New Bid Received',
-      message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
-      auctionId: auction.id,
-      timestamp: new Date().toISOString(),
-      isRead: false
-    });
+    // Commit transaction
+    await transaction.commit();
 
-    // Notify previous highest bidder if exists
-    if (currentHighestBid && currentHighestBid.bidderId !== bidderId) {
+    // ✅ REAL-TIME: Emit detailed bid update to all auction participants
+    try {
+      const webSocketMessage = {
+        type: 'newBid',
+        auctionId: auction.id,
+        bid: bidWithBidder.toPublic(),
+        auction: {
+          id: auction.id,
+          currentPrice: amount,
+          bidCount,
+          highestBidId: bid.id,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      console.log('📡 Broadcasting newBid WebSocket message:', JSON.stringify(webSocketMessage, null, 2));
+      broadcastToAuction(auctionId, webSocketMessage);
+
+      // ✅ REAL-TIME: Also broadcast to all users for auction list updates
+      broadcastToAll({
+        type: 'auctionUpdate',
+        auctionId: auction.id,
+        auction: {
+          id: auction.id,
+          currentPrice: amount,
+          bidCount,
+          highestBidId: bid.id,
+          updatedAt: new Date().toISOString()
+        }
+      });
+    } catch (socketError) {
+      console.error('Error broadcasting WebSocket message:', socketError);
+    }
+
+    // Create notifications with error handling
+    try {
+      console.log(`🔔 Creating new bid notification for seller ${auction.sellerId} on auction ${auction.id}`);
+      // Notify seller
       await Notification.create({
-        userId: currentHighestBid.bidderId,
-        type: 'outbid',
-        title: 'You\'ve been outbid',
-        message: `Your bid on ${auction.title} has been outbid. Current highest bid: $${amount}`,
+        userId: auction.sellerId,
+        type: 'new_bid',
+        title: 'New Bid Received',
+        message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
         data: {
           auctionId: auction.id,
-          previousBidAmount: currentHighestBid.amount,
-          newBidAmount: amount
+          bidAmount: amount,
+          bidderId: req.user.id
         }
       });
 
-      // Notify via socket
-      broadcastToUser(currentHighestBid.bidderId, {
-        type: 'notification',
-        notificationType: 'outbid',
-        title: 'You\'ve been outbid',
-        message: `Your bid on ${auction.title} has been outbid`,
-        auctionId: auction.id,
-        timestamp: new Date().toISOString()
-      });
-
-      // Send email notification
-      const previousBidder = await User.findByPk(currentHighestBid.bidderId);
-      if (previousBidder) {
-        emailService.sendOutbidNotification(previousBidder, auction, bid)
-          .catch(err => console.error('Failed to send outbid email:', err));
+      // Notify seller via socket
+      try {
+        console.log(`📡 Broadcasting new bid notification to seller ${auction.sellerId}`);
+        broadcastToUser(auction.sellerId, {
+          type: 'notification',
+          notificationType: 'new_bid',
+          title: 'New Bid Received',
+          message: `${req.user.username} placed a bid of $${amount} on ${auction.title}`,
+          auctionId: auction.id,
+          timestamp: new Date().toISOString(),
+          isRead: false
+        });
+      } catch (socketError) {
+        console.error('Error broadcasting notification to seller:', socketError);
       }
+
+      // Notify previous highest bidder if exists
+      if (currentHighestBid && currentHighestBid.bidderId !== bidderId) {
+        await Notification.create({
+          userId: currentHighestBid.bidderId,
+          type: 'outbid',
+          title: 'You\'ve been outbid',
+          message: `Your bid on ${auction.title} has been outbid. Current highest bid: $${amount}`,
+          data: {
+            auctionId: auction.id,
+            previousBidAmount: currentHighestBid.amount,
+            newBidAmount: amount
+          }
+        });
+
+        // Notify via socket
+        try {
+          broadcastToUser(currentHighestBid.bidderId, {
+            type: 'notification',
+            notificationType: 'outbid',
+            title: 'You\'ve been outbid',
+            message: `Your bid on ${auction.title} has been outbid`,
+            auctionId: auction.id,
+            timestamp: new Date().toISOString()
+          });
+        } catch (socketError) {
+          console.error('Error broadcasting outbid notification:', socketError);
+        }
+
+        // Send email notification
+        try {
+          const previousBidder = await User.findByPk(currentHighestBid.bidderId);
+          if (previousBidder) {
+            emailService.sendOutbidNotification(previousBidder, auction, bid)
+              .catch(err => console.error('Failed to send outbid email:', err));
+          }
+        } catch (emailError) {
+          console.error('Error sending outbid email:', emailError);
+        }
+      }
+
+    } catch (notificationError) {
+      console.error('Error creating notifications:', notificationError);
+      // Don't fail the entire request for notification errors
     }
+
+    res.status(201).json({
+      success: true,
+      message: 'Bid placed successfully',
+      data: {
+        bid: bidWithBidder,
+        auction: {
+          id: auction.id,
+          currentPrice: amount,
+          bidCount
+        }
+      }
+    });
 
   } catch (error) {
-    console.error('Error creating notifications:', error);
+    // Rollback transaction on any error
+    await transaction.rollback();
+    
+    console.error('Error placing bid:', error);
+    
+    // Re-throw the error to be handled by the error handler middleware
+    throw error;
   }
-
-  res.status(201).json({
-    success: true,
-    message: 'Bid placed successfully',
-    data: {
-      bid: bidWithBidder,
-      auction: {
-        id: auction.id,
-        currentPrice: amount,
-        bidCount
-      }
-    }
-  });
 });
 
 const getAuctionBids = asyncHandler(async (req, res) => {
@@ -347,9 +468,26 @@ const deleteBid = asyncHandler(async (req, res) => {
   });
 });
 
+const debugBid = asyncHandler(async (req, res) => {
+  const { auctionId } = req.params;
+  const { amount } = req.body;
+  const bidderId = req.user.id;
+
+  console.log('🔍 Debug bid request:', { auctionId, amount, bidderId });
+
+  const debugResult = await debugBidCreation(auctionId, bidderId, amount);
+
+  res.json({
+    success: debugResult.success,
+    message: debugResult.success ? 'Debug completed successfully' : 'Debug failed',
+    data: debugResult
+  });
+});
+
 module.exports = {
   placeBid,
   getAuctionBids,
   getBidById,
-  deleteBid
+  deleteBid,
+  debugBid
 };
