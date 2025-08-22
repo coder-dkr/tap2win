@@ -5,7 +5,6 @@ const bidController = require('../controllers/bidController');
 const router = express.Router();
 
 router.post('/auctions/:auctionId/bids', authorize(['buyer', 'admin']), validateRequest(schemas.placeBid), bidController.placeBid);
-router.post('/auctions/:auctionId/bids/debug', authorize(['buyer', 'admin']), validateRequest(schemas.placeBid), bidController.debugBid);
 router.get('/auctions/:auctionId/bids', validateQuery(schemas.pagination), bidController.getAuctionBids);
 router.get('/bids/:id', bidController.getBidById);
 router.delete('/bids/:id', bidController.deleteBid);

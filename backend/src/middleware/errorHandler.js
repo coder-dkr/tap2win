@@ -1,5 +1,6 @@
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('❌ Error occurred:', err.message);
+  console.error('Stack trace:', err.stack);
   
   // Database validation errors
   if (err.name === 'SequelizeValidationError') {
@@ -28,15 +29,6 @@ const errorHandler = (err, req, res, next) => {
     });
   }
   
-  // Database connection errors
-  if (err.name === 'SequelizeConnectionError' || err.name === 'SequelizeConnectionTimedOutError') {
-    console.error('Database connection error:', err);
-    return res.status(503).json({
-      success: false,
-      message: 'Database service temporarily unavailable. Please try again.'
-    });
-  }
-  
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     return res.status(401).json({
@@ -52,15 +44,6 @@ const errorHandler = (err, req, res, next) => {
     });
   }
   
-  // Redis connection errors
-  if (err.message && err.message.includes('Redis')) {
-    console.error('Redis error:', err);
-    return res.status(503).json({
-      success: false,
-      message: 'Cache service temporarily unavailable. Please try again.'
-    });
-  }
-  
   // Custom status errors
   if (err.status) {
     return res.status(err.status).json({
@@ -70,13 +53,9 @@ const errorHandler = (err, req, res, next) => {
   }
   
   // Generic server error
-  console.error('Unhandled error:', err);
   res.status(500).json({
     success: false,
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: 'Internal server error. Please try again.'
   });
 };
 const notFound = (req, res, next) => {

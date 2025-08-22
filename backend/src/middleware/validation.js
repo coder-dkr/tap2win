@@ -57,8 +57,8 @@ const schemas = {
   }),
   placeBid: Joi.object({
     amount: Joi.alternatives().try(
-      Joi.number().positive().precision(2),
-      Joi.string().pattern(/^\d+(\.\d{1,2})?$/).custom((value, helpers) => {
+      Joi.number().positive(),
+      Joi.string().custom((value, helpers) => {
         const num = parseFloat(value);
         if (isNaN(num) || num <= 0) {
           return helpers.error('any.invalid', { message: 'Amount must be a positive number' });

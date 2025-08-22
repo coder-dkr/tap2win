@@ -236,5 +236,29 @@ class RedisService {
       return false;
     }
   }
+
+  // Simple sync function to update Redis with database data
+  async syncBidData(auctionId, bidData) {
+    try {
+      await this.setAuctionHighestBid(auctionId, bidData);
+      console.log(`✅ Synced bid data for auction ${auctionId}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to sync bid data for auction ${auctionId}:`, error);
+      return false;
+    }
+  }
+
+  // Simple function to get bid count from database and sync to Redis
+  async syncBidCount(auctionId, bidCount) {
+    try {
+      await this.setAuctionBidCount(auctionId, bidCount);
+      console.log(`✅ Synced bid count for auction ${auctionId}: ${bidCount}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to sync bid count for auction ${auctionId}:`, error);
+      return false;
+    }
+  }
 }
 module.exports = new RedisService();
